@@ -364,4 +364,5 @@ if __name__ == '__main__':
     if not args.store_intermediates and not args.render_only:
         g = glob.glob('rendered/*')
         for fname in g:
-            os.remove(fname)
+            if fname != '.gitkeep':
+                os.remove(fname)
