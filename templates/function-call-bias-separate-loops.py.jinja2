@@ -1,0 +1,125 @@
+{#- Preamble-- imports the profiler being used and any helper libraries#}
+{% if profiler_dict.use_internal_time %}
+import time
+{% elif profiler_dict.use_cprofile %}
+import cProfile as profile
+import pstats
+{% elif profiler_dict.use_profile %}
+import profile
+import pstats
+{% elif profiler_dict.use_scalene %}
+import scalene
+{% elif profiler_dict.use_pprofile_det%}
+import pprofile
+import sys
+{% elif profiler_dict.use_yappi_cpu or profiler_dict.use_yappi_wall  %}
+import yappi
+{% elif profiler_dict.use_pyinstrument%}
+from pyinstrument import Profiler
+{% elif profiler_dict.use_line_profiler %}
+from line_profiler import LineProfiler
+{% endif %}
+
+def do_work_fn(x, i):
+    return (x >> 2) | (i & x)
+
+{# TODO: replace macros with command line options #}
+def inline_loop(x):
+    for i in range({{iters_inline}}):
+        x = x | (x >> 2) | (i & x)
+    return x
+def fn_call_loop(x):
+    for i in range({{iters_fn}}):
+        x = x | do_work_fn(x, i)
+    return x
+def main():
+    x = 0
+    x = fn_call_loop(x)
+    x = inline_loop(x)
+
+if __name__ == '__main__':
+    {# Setting up profiler objects #}
+    {% if profiler_dict.use_internal_time %}
+    t0 = time.perf_counter_ns()
+    {% elif profiler_dict.use_cprofile or profiler_dict.use_profile %}
+    pr = profile.Profile()
+    {% elif profiler_dict.use_scalene %}
+    scalene.scalene_profiler.start()
+    {% elif profiler_dict.use_pprofile_det%}
+    prof = pprofile.Profile()
+    {% elif profiler_dict.use_yappi_cpu or profiler_dict.use_yappi_wall %}
+    {# Special machinery for YAPPI #}
+    {% if profiler_dict.use_yappi_cpu %}
+    yappi.set_clock_type("cpu")
+    {% else %}
+    yappi.set_clock_type("wall")
+    {% endif %}
+    yappi.start()
+    {% elif profiler_dict.use_pyinstrument %}
+    prof = Profiler()
+    {% elif profiler_dict.use_line_profiler %}
+    {# For attribution, line_profiler requires that all functions that you want traced
+       be entered manually #}
+    prof = LineProfiler()
+    prof.add_function(inline_loop)
+    prof.add_function(fn_call_loop)
+    prof.add_function(do_work_fn)
+    main_wrapper = prof(main)
+    {% endif %}
+    {# Perform the actual work#}
+    {% if profiler_dict.use_pprofile_det%}
+    with prof():
+        main()
+    {% elif profiler_dict.use_pyinstrument %}
+    with prof:
+        main()
+    {% elif profiler_dict.use_profile or profiler_dict.use_cprofile %}
+    pr_res = pr.run('main()')
+    {% elif profiler_dict.use_line_profiler %}
+    main_wrapper()
+    {% else %}
+    main()
+    {% endif %}
+    {# Post-processing, marshalls profiler data as JSON #}
+    {% if profiler_dict.use_internal_time %}
+    dt = time.perf_counter_ns() - t0
+    print(dt)
+    {% elif profiler_dict.use_profile or profiler_dict.use_cprofile %}
+    stats = pstats.Stats(pr_res)
+    import json
+    fn_dict = stats.get_stats_profile()
+    main_cumtime = fn_dict.func_profiles['main']
+    print(json.dumps({
+     'total_tt': fn_dict.total_tt,
+     'func_profiles': {
+         key: {'tottime': fn_dict.func_profiles[key].tottime, 'cumtime': fn_dict.func_profiles[key].cumtime} for key in fn_dict.func_profiles
+     }   
+    }))
+    {% elif profiler_dict.use_scalene %}
+    {# Scalene outputs JSON natively #}
+    scalene.scalene_profiler.stop()
+    {% elif profiler_dict.use_pprofile_det %}
+    prof.callgrind(sys.stdout)
+    {% elif profiler_dict.use_yappi_cpu or profiler_dict.use_yappi_wall %}
+    
+    yappi.stop()
+    import json
+    print(json.dumps({
+        q.name: {'ttot': q.ttot, 'tsub': q.tsub}
+        for q in yappi.get_func_stats()
+    }))
+    {% elif profiler_dict.use_pyinstrument %}
+    from pyinstrument.renderers import JSONRenderer
+    rendered = prof.output(JSONRenderer())
+    print(rendered)
+    {% elif profiler_dict.use_line_profiler %}
+    import json
+    timings = prof.get_stats().timings
+    print(timings)
+    main_fn = list(timings.values())[0]
+    ls = []
+    for lineno, hits, time in main_fn:
+        ls.append({'lineno': lineno, 'time': time})
+    ls.sort(key=lambda x : x['lineno'])
+    print(json.dumps({'lines': ls}))
+    {% endif %}
