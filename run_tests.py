@@ -12,9 +12,10 @@ from enum import Enum
 from a_test import fn_call_loop
 
 from parse_callgrind import parse_callgrind
+from parse_austin import parse_austin
 
 BASE_DICT = {q: False for q in ["use_internal_time", "use_cprofile", "use_scalene",
-                                "use_pprofile_det", "use_yappi_cpu", "use_yappi_wall", "use_pyinstrument", "use_profile", 'line_profiler']}
+                                "use_pprofile_det", "use_yappi_cpu", "use_yappi_wall", "use_pyinstrument", "use_profile", 'line_profiler', 'use_austin']}
 INTERNAL = BASE_DICT.copy()
 INTERNAL['use_internal_time'] = True
 CPROFILE = BASE_DICT.copy()
@@ -33,6 +34,9 @@ PYINSTRUMENT = BASE_DICT.copy()
 PYINSTRUMENT['use_pyinstrument'] = True
 LINE_PROFILER = BASE_DICT.copy()
 LINE_PROFILER['use_line_profiler'] = True
+AUSTIN = BASE_DICT.copy()
+AUSTIN['use_austin'] = True
+
 
 class EvalMethod(Enum):
     # The total time spent in fn_call_loop
@@ -42,6 +46,7 @@ class EvalMethod(Enum):
     PERCENT_TIME = 'percent_time'
     # The total time spent in the ENTIRE PROGRAM
     TOTAL_RUNTIME = 'total_runtime'
+
     def __str__(self):
         return self.value
 
@@ -56,14 +61,14 @@ function_call_bias_template = env.get_template(
     'function-call-bias-separate-loops.py.jinja2')
 
 
-def run_bias(iters_inline: int, iters_fn: int,  profiler_dict: Dict[str, bool], prog: List[str] =['python3'], render_only: bool=False):
+def run_bias(iters_inline: int, iters_fn: int,  profiler_dict: Dict[str, bool], prog: List[str] = ['python3'], render_only: bool = False):
     """
     Renders the test template with instrumentation specified in `profiler_dict` with option
     to override executable (needed in Scalene tests)
 
     Profiler dict has keys "use_internal_time", "use_cprofile", "use_scalene",
                            "use_pprofile_det", "use_yappi_cpu", "use_yappi_wall", "use_pyinstrument", "use_profile", 'line_profiler'
-    
+
     NOTE THAT EXACTLY ONE OF THESE SHOULD BE TRUE. THE PROGRAM DOES NOT CHECK THIS
 
     Returns: stdout and stderr of the process, decoded as UTF-8
@@ -74,6 +79,7 @@ def run_bias(iters_inline: int, iters_fn: int,  profiler_dict: Dict[str, bool], 
         iters_inline=iters_inline, iters_fn=iters_fn, profiler_dict=profiler_dict)
     with open(fname, 'w+') as f:
         f.write(rendered)
+    os.chmod(fname, 0o766)
     if render_only:
         return '', ''
     p = subprocess.run(
@@ -178,7 +184,6 @@ def run_scalene(num_to_average, total_runs, percent_incr, eval_method: EvalMetho
         runtimes = runtimes[len_runtimes // 4:-len_runtimes // 4]
         print(
             f"{percent_in_calls}, {statistics.mean(runtimes)}")
-
 
 
 def run_pprofile_deterministic(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME):
@@ -287,11 +292,31 @@ def run_line_profiler(num_to_average, total_runs, percent_incr, eval_method: Eva
             f"{percent_in_calls}, {statistics.mean(runtimes)}")
 
 
+def run_austin(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME, render_only=False):
+    for percent_in_calls in range(percent_incr, 100, percent_incr):
+        amount_work_in_calls = int(total_runs * (percent_in_calls / 100))
+        amount_work_inline = total_runs - amount_work_in_calls
+        runtimes = []
+        for i in range(num_to_average):
+            res_stdout, _ = run_bias(amount_work_inline, amount_work_in_calls, AUSTIN, prog=[
+                'austin', '-s', '--pipe'], render_only=render_only)
+            res_dict = parse_austin(io.StringIO(res_stdout))
+            # print(res_dict)
+            total_time = res_dict['main']
+            fn_call_loop_time = res_dict['fn_call_loop']
+            runtimes.append((fn_call_loop_time / total_time) * 100)
+        runtimes.sort()
+        len_runtimes = len(runtimes)
+        runtimes = runtimes[len_runtimes // 4:-len_runtimes // 4]
+        print(
+            f"{percent_in_calls}, {statistics.mean(runtimes)}")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--num_to_average', type=int, default=8)
     parser.add_argument(
-        '-b', '--benchmark', choices=['baseline', 'profile', 'cProfile', 'scalene', 'pprofile_det', 'yappi_cpu', 'yappi_wall', 'pyinstrument', 'line_profiler'], default='baseline')
+        '-b', '--benchmark', choices=['baseline', 'profile', 'cProfile', 'scalene', 'pprofile_det', 'yappi_cpu', 'yappi_wall', 'pyinstrument', 'line_profiler', 'austin'], default='baseline')
     parser.add_argument('-s', '--store-intermediates', action='store_true')
     parser.add_argument('-r', '--render-only', action='store_true')
     parser.add_argument('-t', '--total-runs', type=int, default=1000000)
@@ -331,6 +356,9 @@ if __name__ == '__main__':
                          args.percent_incr, False, eval_method=args.eval_method, render_only=args.render_only)
     elif to_run == 'line_profiler':
         run_line_profiler(args.num_to_average, args.total_runs,
+                          args.percent_incr, eval_method=args.eval_method, render_only=args.render_only)
+    elif to_run == 'austin':
+        run_austin(args.num_to_average, args.total_runs,
                           args.percent_incr, eval_method=args.eval_method, render_only=args.render_only)
     else:
         pass

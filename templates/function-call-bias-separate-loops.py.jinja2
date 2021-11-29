@@ -1,3 +1,6 @@
+{% if profiler_dict.use_austin -%}
+#!/usr/bin/env python3
+{%- endif %}
 {#- Preamble-- imports the profiler being used and any helper libraries#}
 {% if profiler_dict.use_internal_time %}
 import time
