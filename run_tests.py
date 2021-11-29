@@ -9,7 +9,6 @@ import glob
 import statistics
 import json
 from enum import Enum
-from a_test import fn_call_loop
 
 from parse_callgrind import parse_callgrind
 from parse_austin import parse_austin
