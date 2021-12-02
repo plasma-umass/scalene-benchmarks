@@ -2,9 +2,8 @@
 #!/usr/bin/env python3
 {%- endif %}
 {#- Preamble-- imports the profiler being used and any helper libraries#}
-{% if profiler_dict.use_internal_time %}
 import time
-{% elif profiler_dict.use_cprofile %}
+{% if profiler_dict.use_cprofile %}
 import cProfile as profile
 import pstats
 {% elif profiler_dict.use_profile %}
@@ -37,14 +36,17 @@ def fn_call_loop(x):
     return x
 def main():
     x = 0
+    start_fn_call = time.perf_counter()
     x = fn_call_loop(x)
+    elapsed_fn_call = time.perf_counter() - start_fn_call
+    start_inline_loop = time.perf_counter()
     x = inline_loop(x)
+    elapsed_inline_loop = time.perf_counter() - start_inline_loop
+    return elapsed_fn_call, elapsed_inline_loop
 
 if __name__ == '__main__':
     {# Setting up profiler objects #}
-    {% if profiler_dict.use_internal_time %}
-    t0 = time.perf_counter_ns()
-    {% elif profiler_dict.use_cprofile or profiler_dict.use_profile %}
+    {% if profiler_dict.use_cprofile or profiler_dict.use_profile %}
     pr = profile.Profile()
     {% elif profiler_dict.use_scalene %}
     scalene.scalene_profiler.start()
@@ -70,30 +72,36 @@ if __name__ == '__main__':
     main_wrapper = prof(main)
     {% endif %}
     {# Perform the actual work#}
-    {% if profiler_dict.use_pprofile_det%}
+    {% if profiler_dict.use_internal_time%}
+    elapsed_fn_call, elapsed_inline_loop = main()
+    import json
+    print(json.dumps({
+        'actual_elapsed_inline': elapsed_inline_loop,
+        'actual_elapsed_fn': elapsed_fn_call
+    }))
+    {% elif profiler_dict.use_pprofile_det%}
     with prof():
-        main()
+        elapsed_fn, elapsed_inline = main()
     {% elif profiler_dict.use_pyinstrument %}
     with prof:
-        main()
+        elapsed_fn, elapsed_inline = main()
     {% elif profiler_dict.use_profile or profiler_dict.use_cprofile %}
-    pr_res = pr.run('main()')
+    pr_res = pr.run('elapsed_fn, elapsed_inline = main()')
     {% elif profiler_dict.use_line_profiler %}
-    main_wrapper()
+    elapsed_fn, elapsed_inline = main_wrapper()
     {% else %}
-    main()
+    elapsed_fn, elapsed_inline = main()
     {% endif %}
     {# Post-processing, marshalls profiler data as JSON #}
-    {% if profiler_dict.use_internal_time %}
-    dt = time.perf_counter_ns() - t0
-    print(dt)
-    {% elif profiler_dict.use_profile or profiler_dict.use_cprofile %}
+    {% if profiler_dict.use_profile or profiler_dict.use_cprofile %}
     stats = pstats.Stats(pr_res)
     import json
     fn_dict = stats.get_stats_profile()
     main_cumtime = fn_dict.func_profiles['main']
     print(json.dumps({
      'total_tt': fn_dict.total_tt,
+     'actual_elapsed_fn': elapsed_fn, 
+     'actual_elapsed_inline': elapsed_inline,
      'func_profiles': {
          key: {'tottime': fn_dict.func_profiles[key].tottime, 'cumtime': fn_dict.func_profiles[key].cumtime} for key in fn_dict.func_profiles
      }   
@@ -101,28 +109,41 @@ if __name__ == '__main__':
     {% elif profiler_dict.use_scalene %}
     {# Scalene outputs JSON natively #}
     scalene.scalene_profiler.stop()
+    import json
+    print('buttonmashbuttonmashbuttonmash')
+    print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
+    
     {% elif profiler_dict.use_pprofile_det %}
+    import json
+    print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
+    print('buttonmashbuttonmashbuttonmash')
     prof.callgrind(sys.stdout)
     {% elif profiler_dict.use_yappi_cpu or profiler_dict.use_yappi_wall %}
-    
     yappi.stop()
     import json
     print(json.dumps({
         q.name: {'ttot': q.ttot, 'tsub': q.tsub}
         for q in yappi.get_func_stats()
-    }))
+    } | {'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline} ))
     {% elif profiler_dict.use_pyinstrument %}
+    import json
     from pyinstrument.renderers import JSONRenderer
     rendered = prof.output(JSONRenderer())
+    print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
+    print('buttonmashbuttonmashbuttonmash')
     print(rendered)
     {% elif profiler_dict.use_line_profiler %}
     import json
     timings = prof.get_stats().timings
-    print(timings)
-    main_fn = list(timings.values())[0]
+    {# print(list(enumerate(timings))) #}
+    main_fn = next(v for k,v in timings.items() if k[2] == 'main')
     ls = []
     for lineno, hits, time in main_fn:
         ls.append({'lineno': lineno, 'time': time})
     ls.sort(key=lambda x : x['lineno'])
-    print(json.dumps({'lines': ls}))
+    print(json.dumps({'lines': ls, 'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
+    {% elif profiler_dict.use_austin %}
+    import json
+    print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
+    print('buttonmashbuttonmashbuttonmash')
     {% endif %}
