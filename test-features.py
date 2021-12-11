@@ -4,6 +4,13 @@ import threading
 import multiprocessing
 import numpy as np
 
+try:
+    profile
+except NameError:
+    def profile(f):
+        return f
+
+@profile
 def do_work(n):
     print(f"thread {n}")
     x = 0
@@ -12,6 +19,7 @@ def do_work(n):
             for k in range(10):
                 x += 1
 
+@profile
 def test_threading():
     # Threads?
     t1 = threading.Thread(target=do_work, args=(1,))
@@ -19,6 +27,7 @@ def test_threading():
     t1.start()
     t2.start()
 
+@profile
 def test_multiprocessing():
     # Multiprocessing?
     handles = [multiprocessing.Process(target=do_work, args=(i,)) for i in range(2)]
@@ -31,14 +40,14 @@ def test_multiprocessing():
         print("Joining", handle)
         handle.join()
 
+@profile
 def test_memory():
     def allocate():
-        return np.zeros((1000,1000))
+        return np.zeros((10000,1000))
     x = allocate()
-    for n in range(40):
-        for i in range(1000):
-            for j in range(1000):
-                x[i,j] += 1
+    for i in range(10000):
+        for j in range(1000):
+            x[0,0] += 1 # was x[i,j]
     
 if __name__ == '__main__':
     multiprocessing.freeze_support()
