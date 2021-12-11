@@ -12,7 +12,7 @@ except NameError:
 ITS = 1000000
 SIZE = 100000
 
-#@profile
+@profile
 def memory_test_python():
     x = list(range(SIZE))
     for i in range(ITS):
@@ -20,7 +20,7 @@ def memory_test_python():
     return x
     # print("python", asizeof.asizeof(x))
 
-#@profile
+@profile
 def memory_test_native():
     y = np.zeros((1000, SIZE// 100))
     for i in range(ITS):
@@ -29,7 +29,7 @@ def memory_test_native():
     #print(sys.getsizeof(x))
     #print("native", asizeof.asizeof(x))
 
-#@profile
+@profile
 def memory_test_both():
     x = np.empty((1000, SIZE// 100))
     for i in range(ITS):
