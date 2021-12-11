@@ -2,7 +2,6 @@ import io
 import argparse
 from collections import defaultdict
 from typing import Dict, List
-from typing_extensions import runtime
 from jinja2 import Environment, FileSystemLoader
 import subprocess
 import os
@@ -11,31 +10,26 @@ import statistics
 import json
 from enum import Enum
 
+from constants import INTERNAL, CPROFILE, PROFILE, SCALENE, PPROFILE_DET, PPROFILE_STAT, YAPPI_CPU, YAPPI_WALL, \
+    PYINSTRUMENT, LINE_PROFILER, AUSTIN, PYSPY
 from parse_callgrind import parse_callgrind
 from parse_austin import parse_austin
+from parse_speedscope import parse_speedscope
 
-BASE_DICT = {q: False for q in ["use_internal_time", "use_cprofile", "use_scalene",
-                                "use_pprofile_det", "use_yappi_cpu", "use_yappi_wall", "use_pyinstrument", "use_profile", 'line_profiler', 'use_austin']}
-INTERNAL = BASE_DICT.copy()
 INTERNAL['use_internal_time'] = True
-CPROFILE = BASE_DICT.copy()
 CPROFILE['use_cprofile'] = True
-PROFILE = BASE_DICT.copy()
 PROFILE['use_profile'] = True
-SCALENE = BASE_DICT.copy()
 SCALENE['use_scalene'] = True
-PPROFILE_DET = BASE_DICT.copy()
 PPROFILE_DET['use_pprofile_det'] = True
-YAPPI_CPU = BASE_DICT.copy()
+PPROFILE_STAT['use_pprofile_stat'] = True
 YAPPI_CPU['use_yappi_cpu'] = True
-YAPPI_WALL = BASE_DICT.copy()
 YAPPI_WALL['use_yappi_wall'] = True
-PYINSTRUMENT = BASE_DICT.copy()
 PYINSTRUMENT['use_pyinstrument'] = True
-LINE_PROFILER = BASE_DICT.copy()
 LINE_PROFILER['use_line_profiler'] = True
-AUSTIN = BASE_DICT.copy()
 AUSTIN['use_austin'] = True
+PYSPY['use_pyspy'] = True
+
+SEPARATOR = 'buttonmashbuttonmashbuttonmash'
 
 
 class EvalMethod(Enum):
@@ -50,12 +44,14 @@ class EvalMethod(Enum):
     def __str__(self):
         return self.value
 
+
 def runtime_mean(runtimes):
     sorted_runtimes = sorted(runtimes)
     len_runtimes = len(sorted_runtimes)
     to_avg_runtimes = sorted_runtimes[len_runtimes // 4:-len_runtimes // 4]
     mean = statistics.mean(to_avg_runtimes)
     return mean
+
 
 loader = FileSystemLoader('templates')
 
@@ -68,7 +64,7 @@ function_call_bias_template = env.get_template(
 
 
 def split_on_json(s):
-    first, second = s.split('buttonmashbuttonmashbuttonmash')
+    first, second = s.split(SEPARATOR)
     return first.strip(), second.strip()
 
 
@@ -95,12 +91,13 @@ def run_bias(iters_inline: int, iters_fn: int,  profiler_dict: Dict[str, bool], 
         return '', ''
     p = subprocess.run(
         prog + [fname], capture_output=True)
-    if p.returncode != 0:
+    stderr = p.stderr.decode('utf-8')
+    if p.returncode != 0 and not 'os error 10' in stderr:
         print("ERROR RUNNING PROGRAM")
         print("STDOUT:", p.stdout.decode('utf-8'))
         print("STDERR: ", p.stderr.decode('utf-8'))
         exit(1)
-    return p.stdout.decode('utf-8'), p.stderr.decode('utf-8')
+    return p.stdout.decode('utf-8'), stderr
 
 
 def run_baselines(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME):
@@ -165,16 +162,20 @@ def get_function_json_scalene(functions, fn_name):
     return function_ret
 
 
-def run_scalene(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME):
+def run_scalene(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME, with_memory=False):
 
     for percent_in_calls in range(percent_incr, 100, percent_incr):
         amount_work_in_calls = int(total_runs * (percent_in_calls / 100))
         amount_work_inline = total_runs - amount_work_in_calls
         runtimes = []
         measured_runtimes = []
+        cmd = [
+            'python3', '-m', 'scalene', '--json']
+        if not with_memory:
+            cmd += ['--cpu-only']
         for i in range(num_to_average):
-            res_stdout, _ = run_bias(amount_work_inline, amount_work_in_calls, SCALENE, prog=[
-                'python3', '-m', 'scalene', '--cpu-only', '--json'])
+            res_stdout, _ = run_bias(
+                amount_work_inline, amount_work_in_calls, SCALENE, prog=cmd)
             scalene_str, internal_time_str = split_on_json(res_stdout)
             scalene_json = json.loads(scalene_str)
             internal_json = json.loads(internal_time_str)
@@ -197,8 +198,12 @@ def run_scalene(num_to_average, total_runs, percent_incr, eval_method: EvalMetho
                     time_ns = elapsed_time_ns * total_amt
                     runtimes.append(time_ns)
             elif eval_method is EvalMethod.PERCENT_TIME:
-                runtimes.append(get_fn_percent_scalene(
-                    function_fn_call_loop) + get_fn_percent_scalene(function_do_work_fn))
+                percent_fn_call_loop = get_fn_percent_scalene(function_fn_call_loop) + get_fn_percent_scalene(function_do_work_fn)
+                percent_main = percent_fn_call_loop + get_fn_percent_scalene(function_main) + get_fn_percent_scalene(function_inline_loop)
+                runtimes.append(
+                    (percent_fn_call_loop / percent_main) * 100
+                    
+                    )
                 measured_runtimes.append((internal_json['actual_elapsed_fn'] / (
                     internal_json['actual_elapsed_fn'] + internal_json['actual_elapsed_inline'])) * 100)
             elif eval_method is EvalMethod.TOTAL_RUNTIME:
@@ -219,7 +224,7 @@ def run_pprofile_deterministic(num_to_average, total_runs, percent_incr, eval_me
             res_stdout, _ = run_bias(
                 amount_work_inline, amount_work_in_calls, PPROFILE_DET)
             internal_json_str, callgrind_str = split_on_json(res_stdout)
-            res_dict = parse_callgrind(io.StringIO(callgrind_str))
+            res_dict, _ = parse_callgrind(io.StringIO(callgrind_str))
             internal_json = json.loads(internal_json_str)
             filename = next(key for key in res_dict if 'bias-' in key)
             # print(filename)
@@ -231,6 +236,38 @@ def run_pprofile_deterministic(num_to_average, total_runs, percent_incr, eval_me
                 reported_runtimes.append(main_time)
             elif eval_method == EvalMethod.PERCENT_TIME:
                 reported_runtimes.append((fn_loop_time / main_time) * 100)
+                measured_runtimes.append((internal_json['actual_elapsed_fn'] / (
+                    internal_json['actual_elapsed_fn'] + internal_json['actual_elapsed_inline'])) * 100)
+        reported_mean = runtime_mean(reported_runtimes)
+        measured_mean = runtime_mean(measured_runtimes)
+        print(
+            f"{percent_in_calls}, {reported_mean}, {measured_mean}")
+
+
+def run_pprofile_statistical(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME):
+    for percent_in_calls in range(percent_incr, 100, percent_incr):
+        amount_work_in_calls = int(total_runs * (percent_in_calls / 100))
+        amount_work_inline = total_runs - amount_work_in_calls
+        reported_runtimes = []
+        measured_runtimes = []
+        for i in range(num_to_average):
+            res_stdout, _ = run_bias(
+                amount_work_inline, amount_work_in_calls, PPROFILE_STAT)
+            internal_json_str, callgrind_str = split_on_json(res_stdout)
+            _, res_dict = parse_callgrind(io.StringIO(callgrind_str))
+            filename = next(key for key in res_dict if 'bias-' in key)
+            main_hits = res_dict[filename]['main']
+            fn_loop_hits = res_dict[filename]['fn_call_loop']
+            internal_json = json.loads(internal_json_str)
+
+            if eval_method == EvalMethod.ABS_TIME:
+                raise RuntimeError("Cannot measure actual time")
+                # reported_runtimes.append(fn_loop_hits)
+            elif eval_method == EvalMethod.TOTAL_RUNTIME:
+                # reported_runtimes.append(main_hits)
+                raise RuntimeError("Cannot measure actual time")
+            elif eval_method == EvalMethod.PERCENT_TIME:
+                reported_runtimes.append((fn_loop_hits / main_hits) * 100)
                 measured_runtimes.append((internal_json['actual_elapsed_fn'] / (
                     internal_json['actual_elapsed_fn'] + internal_json['actual_elapsed_inline'])) * 100)
         reported_mean = runtime_mean(reported_runtimes)
@@ -280,9 +317,9 @@ def run_pyinstrument(num_to_average, total_runs, percent_incr, eval_method: Eval
             if render_only:
                 break
             internal_str, pyinstr_str = split_on_json(res_stdout)
-            pprofile_json = json.loads(pyinstr_str)
+            pyinstr_json = json.loads(pyinstr_str)
             internal_json = json.loads(internal_str)
-            main_fn = pprofile_json['root_frame']['children'][0]
+            main_fn = pyinstr_json['root_frame']['children'][0]
             main_fn_time = main_fn['time']
             fn_call_loop = next(
                 fn for fn in main_fn['children'] if fn['function'] == 'fn_call_loop')
@@ -352,7 +389,7 @@ def run_austin(num_to_average, total_runs, percent_incr, eval_method: EvalMethod
             runtimes.append((fn_call_loop_time / total_time) * 100)
             # measured_runtimes.append((internal_json['actual_elapsed_fn'] / (
             #         internal_json['actual_elapsed_fn'] + internal_json['actual_elapsed_inline'])) * 100)
-            
+
         mean = runtime_mean(runtimes)
         measured_mean = 0
         # measured_mean = runtime_mean(measured_runtimes)
@@ -360,14 +397,53 @@ def run_austin(num_to_average, total_runs, percent_incr, eval_method: EvalMethod
             f"{percent_in_calls}, {mean}, {measured_mean}")
 
 
-
+def run_pyspy(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME, render_only=False, store_intermediates=False):
+    for percent_in_calls in range(percent_incr, 100, percent_incr):
+        amount_work_in_calls = int(total_runs * (percent_in_calls / 100))
+        amount_work_inline = total_runs - amount_work_in_calls
+        runtimes = []
+        measured_runtimes = []
+        for i in range(num_to_average):
+            fname = f'rendered/dat-{i}.json'
+            res_stdout, _ = run_bias(amount_work_inline, amount_work_in_calls, PYSPY, prog=[
+                'py-spy', 'record', '--format', 'speedscope', '-o', fname, '--', 'python3'], render_only=render_only)
+            # internal_time_str, austin_str = split_on_json(res_stdout)
+            internal_time_str = res_stdout.split(SEPARATOR)[1]
+            internal_json = json.loads(internal_time_str)
+            with open(fname, 'r') as f:
+                res_dict = parse_speedscope(f)
+            if not store_intermediates:
+                os.remove(fname)
+            # res_dict = parse_austin(io.StringIO(res_stdout))
+            # internal_json = json.loads(internal_time_str)
+            # print(res_dict)
+            profiled_filename = next(key for key in res_dict if 'bias-' in key)
+            main_fn_time = res_dict[profiled_filename]['main']
+            fn_call_loop_time = res_dict[profiled_filename]['fn_call_loop']
+            # measured_runtimes.append((internal_json['actual_elapsed_fn'] / (
+            #         internal_json['actual_elapsed_fn'] + internal_json['actual_elapsed_inline'])) * 100)
+            if eval_method is EvalMethod.PERCENT_TIME:
+                runtimes.append((fn_call_loop_time / main_fn_time) * 100)
+                measured_runtimes.append((internal_json['actual_elapsed_fn'] / (
+                    internal_json['actual_elapsed_fn'] + internal_json['actual_elapsed_inline'])) * 100)
+            elif eval_method is EvalMethod.ABS_TIME:
+                runtimes.append(fn_call_loop_time)
+            elif eval_method is EvalMethod.TOTAL_RUNTIME:
+                runtimes.append(main_fn_time)
+        mean = runtime_mean(runtimes)
+        measured_mean = runtime_mean(measured_runtimes)
+        # measured_mean = runtime_mean(measured_runtimes)
+        print(
+            f"{percent_in_calls}, {mean}, {measured_mean}")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--num_to_average', type=int, default=8)
     parser.add_argument(
-        '-b', '--benchmark', choices=['baseline', 'profile', 'cProfile', 'scalene', 'pprofile_det', 'yappi_cpu', 'yappi_wall', 'pyinstrument', 'line_profiler', 'austin'], default='baseline')
+        '-b', '--benchmark', choices=['baseline', 'profile', 'cProfile', 'scalene', 'scalene-mem', 'pprofile_det',
+                                      'yappi_cpu', 'yappi_wall', 'pyinstrument', 'line_profiler', 'austin',
+                                      'pprofile_stat', 'py_spy'], default='baseline')
     parser.add_argument('-s', '--store-intermediates', action='store_true')
     parser.add_argument('-r', '--render-only', action='store_true')
     parser.add_argument('-t', '--total-runs', type=int, default=1000000)
@@ -394,8 +470,14 @@ if __name__ == '__main__':
     elif to_run == 'scalene':
         run_scalene(args.num_to_average, args.total_runs,
                     args.percent_incr, eval_method=args.eval_method)
+    elif to_run == 'scalene-mem':
+        run_scalene(args.num_to_average, args.total_runs,
+                    args.percent_incr, eval_method=args.eval_method, with_memory=True)
     elif to_run == 'pprofile_det':
         run_pprofile_deterministic(
+            args.num_to_average, args.total_runs, args.percent_incr, eval_method=args.eval_method)
+    elif to_run == 'pprofile_stat':
+        run_pprofile_statistical(
             args.num_to_average, args.total_runs, args.percent_incr, eval_method=args.eval_method)
     elif to_run == 'yappi_cpu':
         run_yappi(args.num_to_average, args.total_runs,
@@ -412,6 +494,9 @@ if __name__ == '__main__':
     elif to_run == 'austin':
         run_austin(args.num_to_average, args.total_runs,
                    args.percent_incr, eval_method=args.eval_method, render_only=args.render_only)
+    elif to_run == 'py_spy':
+        run_pyspy(args.num_to_average, args.total_runs,
+                   args.percent_incr, eval_method=args.eval_method, render_only=args.render_only, store_intermediates=args.store_intermediates)
     else:
         pass
     if not args.store_intermediates and not args.render_only:

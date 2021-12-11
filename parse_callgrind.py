@@ -18,6 +18,7 @@ def parse_callgrind(f: TextIO):
     state = States.INIT
     line = f.readline()
     func_names_to_runtime = defaultdict(lambda: defaultdict(lambda: 0))
+    func_names_to_hits = defaultdict(lambda: defaultdict(lambda: 0))
     func_name = ''
     file_name = ''
     while line:
@@ -47,7 +48,9 @@ def parse_callgrind(f: TextIO):
                 continue
             splitline = line.split(' ')
             tottime = float(splitline[2])
+            hits = float(splitline[1])
             func_names_to_runtime[file_name][func_name] += tottime
+            func_names_to_hits[file_name][func_name] += hits
         elif state is States.CFL_BLOCK:
             if line.startswith('cfl') or line.startswith('cfn') or line.startswith('calls'):
                 pass
@@ -55,9 +58,9 @@ def parse_callgrind(f: TextIO):
                 state = States.FL_BLOCK_INNER
                 continue
         else:
-            raise RuntimeError("RU")
+            raise RuntimeError(">:(")
         line = f.readline()
-    return func_names_to_runtime
+    return func_names_to_runtime, func_names_to_hits
 
 
 if __name__ == '__main__':
