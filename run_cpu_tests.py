@@ -170,7 +170,7 @@ def run_scalene(num_to_average, total_runs, percent_incr, eval_method: EvalMetho
         runtimes = []
         measured_runtimes = []
         cmd = [
-            'python3', '-m', 'scalene', '--json']
+            'python3', '-m', 'scalene', '--json', '--off']
         if not with_memory:
             cmd += ['--cpu-only']
         for i in range(num_to_average):
@@ -371,19 +371,22 @@ def run_line_profiler(num_to_average, total_runs, percent_incr, eval_method: Eva
             f"{percent_in_calls}, {mean}, {measured_mean}")
 
 
-def run_austin(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME, render_only=False):
+def run_austin(num_to_average, total_runs, percent_incr, eval_method: EvalMethod = EvalMethod.ABS_TIME, render_only=False, use_full=False):
     for percent_in_calls in range(percent_incr, 100, percent_incr):
         amount_work_in_calls = int(total_runs * (percent_in_calls / 100))
         amount_work_inline = total_runs - amount_work_in_calls
         runtimes = []
+        cmd = [
+                'austin', '-s', '--pipe']
+        if use_full:
+            cmd += ['-f']
+
         measured_runtimes = []
         for i in range(num_to_average):
-            res_stdout, _ = run_bias(amount_work_inline, amount_work_in_calls, AUSTIN, prog=[
-                'austin', '-s', '--pipe'], render_only=render_only)
+            res_stdout, _ = run_bias(amount_work_inline, amount_work_in_calls, AUSTIN, prog=cmd, render_only=render_only)
             # internal_time_str, austin_str = split_on_json(res_stdout)
-            res_dict = parse_austin(io.StringIO(res_stdout))
+            res_dict = parse_austin(io.StringIO(res_stdout), is_full=use_full)
             # internal_json = json.loads(internal_time_str)
-            # print(res_dict)
             total_time = res_dict['main']
             fn_call_loop_time = res_dict['fn_call_loop']
             runtimes.append((fn_call_loop_time / total_time) * 100)
@@ -443,7 +446,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-b', '--benchmark', choices=['baseline', 'profile', 'cProfile', 'scalene', 'scalene-mem', 'pprofile_det',
                                       'yappi_cpu', 'yappi_wall', 'pyinstrument', 'line_profiler', 'austin',
-                                      'pprofile_stat', 'py_spy'], default='baseline')
+                                      'pprofile_stat', 'py_spy', "austin-mem"], default='baseline')
     parser.add_argument('-s', '--store-intermediates', action='store_true')
     parser.add_argument('-r', '--render-only', action='store_true')
     parser.add_argument('-t', '--total-runs', type=int, default=1000000)
@@ -494,6 +497,9 @@ if __name__ == '__main__':
     elif to_run == 'austin':
         run_austin(args.num_to_average, args.total_runs,
                    args.percent_incr, eval_method=args.eval_method, render_only=args.render_only)
+    elif to_run == 'austin-mem':
+        run_austin(args.num_to_average, args.total_runs,
+                   args.percent_incr, eval_method=args.eval_method, render_only=args.render_only, use_full=True)
     elif to_run == 'py_spy':
         run_pyspy(args.num_to_average, args.total_runs,
                    args.percent_incr, eval_method=args.eval_method, render_only=args.render_only, store_intermediates=args.store_intermediates)

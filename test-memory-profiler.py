@@ -1,25 +1,8 @@
 import numpy as np
-from pympler import asizeof
-# import gc
-import sys
-# import tracemalloc
-# tracemalloc.start()
-try:
-    profile
-except NameError:
-    def profile(f):
-        return f
+
 
 ITS = 1000000
 SIZE = 100000
-
-# @profile
-def memory_test_python():
-    x = list(range(SIZE))
-    for i in range(ITS):
-        x[0] = 258 # Force allocation of an object
-    return x
-    # print("python", asizeof.asizeof(x))
 
 @profile
 def memory_test_native():
@@ -42,6 +25,15 @@ def memory_test_both():
     # print(asizeof.asizeof(x))
     return x0, x
 
+if __name__ == '__main__':
+    a = memory_test_both()
+
+
+
 #memory_test_both()
-#memory_test_both()
-memory_test_both()
+# s1 = tracemalloc.take_snapshot()
+# l = LineProfiler()
+# @profile
+# def abc():
+#     print('uwu')
+
