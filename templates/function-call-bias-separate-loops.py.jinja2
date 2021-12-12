@@ -11,7 +11,7 @@ import profile
 import pstats
 {% elif profiler_dict.use_scalene %}
 import scalene
-{% elif profiler_dict.use_pprofile_det%}
+{% elif profiler_dict.use_pprofile_det or profiler_dict.use_pprofile_stat %}
 import pprofile
 import sys
 {% elif profiler_dict.use_yappi_cpu or profiler_dict.use_yappi_wall  %}
@@ -52,6 +52,8 @@ if __name__ == '__main__':
     scalene.scalene_profiler.start()
     {% elif profiler_dict.use_pprofile_det%}
     prof = pprofile.Profile()
+    {% elif profiler_dict.use_pprofile_stat %}
+    prof = pprofile.StatisticalProfile()
     {% elif profiler_dict.use_yappi_cpu or profiler_dict.use_yappi_wall %}
     {# Special machinery for YAPPI #}
     {% if profiler_dict.use_yappi_cpu %}
@@ -81,6 +83,9 @@ if __name__ == '__main__':
     }))
     {% elif profiler_dict.use_pprofile_det%}
     with prof():
+        elapsed_fn, elapsed_inline = main()
+    {% elif profiler_dict.use_pprofile_stat %}
+    with prof(period=0.001, single=True):
         elapsed_fn, elapsed_inline = main()
     {% elif profiler_dict.use_pyinstrument %}
     with prof:
@@ -113,8 +118,9 @@ if __name__ == '__main__':
     print('buttonmashbuttonmashbuttonmash')
     print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
     
-    {% elif profiler_dict.use_pprofile_det %}
+    {% elif profiler_dict.use_pprofile_det or profiler_dict.use_pprofile_stat %}
     import json
+    
     print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
     print('buttonmashbuttonmashbuttonmash')
     prof.callgrind(sys.stdout)
@@ -144,6 +150,11 @@ if __name__ == '__main__':
     print(json.dumps({'lines': ls, 'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
     {% elif profiler_dict.use_austin %}
     import json
+    print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
+    print('buttonmashbuttonmashbuttonmash')
+    {% elif profiler_dict.use_pyspy%}
+    import json
+    print('buttonmashbuttonmashbuttonmash')
     print(json.dumps({'actual_elapsed_fn': elapsed_fn, 'actual_elapsed_inline': elapsed_inline}))
     print('buttonmashbuttonmashbuttonmash')
     {% endif %}

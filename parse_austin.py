@@ -25,6 +25,10 @@ def parse_austin(austin_pipe_out: TextIO, is_full=False, filename_prefix='bias')
     return function_runtimes
 
 if __name__ == '__main__':
-    f = open('austin.out', 'r')
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--file', type=str, default='austin.out')
+    args = parser.parse_args()
+    f = open(args.file, 'r')
     res = parse_austin(f, is_full=False, filename_prefix='test-features')
     print(res)

@@ -1,0 +1,49 @@
+{% if profiler_dict.use_tracemalloc %}
+import tracemalloc
+tracemalloc.start()
+{% elif profiler_dict.use_scalene %}
+import scalene
+{% elif profiler_dict.use_memory_profiler%}
+import memory_profiler 
+profile = memory_profiler.LineProfiler()
+{%endif %}
+
+import numpy as np
+
+{% if use_memory_profiler -%}
+@profile
+{%- endif %}
+def allocate():
+    return np.zeros((1000,1000))
+
+{% if use_memory_profiler -%}
+@profile
+{%- endif %}
+def test_memory():
+
+    x = allocate()
+    for n in range(40):
+        for i in range(1000):
+            for j in range(1000):
+                x[i,j] += 1
+    return x
+
+if __name__ == '__main__':
+    {% if profiler_dict.use_tracemalloc%}
+    snapshot1 = tracemalloc.take_snapshot()
+    {% elif profiler_dict.use_scalene %}
+    scalene.scalene_profiler.start()
+    {% endif %}
+    x = test_memory()
+    {% if profiler_dict.use_tracemalloc %}
+    snapshot2 = tracemalloc.take_snapshot()
+    stats = snapshot2.compare_to(snapshot1, 'lineno')
+    relevant_stats = [stat for stat in stats if __file__ in stat.traceback._frames[0][0]]
+    jsonified_stats = [{'filename': stat.traceback._frames[0][0],
+                        'lineno': stat.traceback._frames[0][1],
+                        'size_diff': stat.size_diff} for stat in relevant_stats]
+    import json
+    print(json.dumps({'stats': jsonified_stats}))
+    {% elif profiler_dict.use_scalene %}
+    scalene.scalene_profiler.stop()
+    {% endif %}
