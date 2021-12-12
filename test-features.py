@@ -48,7 +48,19 @@ def test_memory():
     for i in range(10000):
         for j in range(1000):
             x[0,0] += 1 # was x[i,j]
-    
+
+@profile
+def test_leak():
+    ITS = 1000000
+    NON_LEAK = 20
+    acc = [None] * ITS
+    leak = []
+    for i in range(ITS):
+        acc[i] = []
+        for j in range(NON_LEAK):
+            acc[i].append(j)
+        leak.append(1000)
+            
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     parser = argparse.ArgumentParser(description='Test profiler support for various Python features.')
@@ -56,6 +68,7 @@ if __name__ == '__main__':
     group.add_argument('--threading', action="store_const", const=True, help='Test threading support.', required=False)
     group.add_argument('--multiprocessing', action="store_const", const=True, help='Test multiprocessing support.', required=False)
     group.add_argument('--memory', action="store_const", const=True, help='Test memory attribution support.', required=False)
+    group.add_argument('--leak', action="store_const", const=True, help='Test leak detection support.', required=False)
     args = parser.parse_args()
 
     if args.threading:
@@ -64,4 +77,6 @@ if __name__ == '__main__':
         test_multiprocessing()
     elif args.memory:
         test_memory()
+    elif args.leak:
+        test_leak()
         
