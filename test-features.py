@@ -42,11 +42,13 @@ def test_multiprocessing():
 
 @profile
 def test_memory():
+    XDIM = 10000
+    YDIM = 1000
     def allocate():
-        return np.zeros((10000,1000))
+        return np.zeros((XDIM,YDIM))
     x = allocate()
-    for i in range(10000):
-        for j in range(1000):
+    for i in range(XDIM):
+        for j in range(YDIM):
             x[0,0] += 1 # was x[i,j]
 
 @profile
@@ -71,6 +73,8 @@ if __name__ == '__main__':
     group.add_argument('--leak', action="store_const", const=True, help='Test leak detection support.', required=False)
     args = parser.parse_args()
 
+    import time
+    start = time.perf_counter()
     if args.threading:
         test_threading()
     elif args.multiprocessing:
@@ -79,4 +83,6 @@ if __name__ == '__main__':
         test_memory()
     elif args.leak:
         test_leak()
+    stop = time.perf_counter()
+    print("Time elapsed: ", stop - start, " seconds")
         
