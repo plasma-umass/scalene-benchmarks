@@ -1,5 +1,5 @@
 
-from constants import MEM_PROFILER, SCALENE_MEM, TRACEMALLOC, AUSTIN_MEM, FIL
+from constants import MEM_PROFILER, SCALENE_MEM, TRACEMALLOC, AUSTIN_MEM, FIL, PYMPLER
 from typing import Dict, List
 import subprocess
 
@@ -25,12 +25,22 @@ env = Environment(loader=loader)
 # cpu_attrib_action_template = env.get_template(
 #     'cpu-attribution-actionability.py.jinja2')
 mem_template = env.get_template(
-    'memory.py.jinja2')
+        'memory.py.jinja2')
 
+def get_fname(profiler_dict):
+    return f'memory-{next(k for k in profiler_dict if profiler_dict[k])}.py'
 
-def run_mem(profiler_dict: Dict[str, bool], prog: List[str] = ['python3'], render_only: bool = False):
-    fname = f'rendered/memory-{next(k for k in profiler_dict if profiler_dict[k])}.py'
-    rendered = mem_template.render(profiler_dict=profiler_dict)
+def get_lineno_with_label(label, fname):
+    with open(f"rendered/{fname}", 'r') as f:
+        for num, line in enumerate(f, 1):
+            if label in line:
+                return num
+    return -1
+
+def run_mem(profiler_dict: Dict[str, bool], prog: List[str] = ['python3'], render_only: bool = False, num_iters: int = 50, template_base: str = 'memory'):
+    
+    fname = f"rendered/{get_fname(profiler_dict)}"
+    rendered = mem_template.render(profiler_dict=profiler_dict, num_iters=num_iters)
     with open(fname, 'w+') as f:
         f.write(rendered)
     os.chmod(fname, 0o766)
@@ -58,57 +68,90 @@ def run_memory_profiler(render_only=False, backend_flags=None):
     print(mem_profiler_json)
 
 
-def run_scalene(render_only: bool = False):
+def run_scalene(num_iters: int, labels, render_only: bool = False):
     program = ['python3', '-m', 'scalene', '--json', '--off']
-    stdout, _ = run_mem(SCALENE_MEM, prog=program, render_only=render_only)
+    stdout, _ = run_mem(SCALENE_MEM, prog=program, render_only=render_only, num_iters=num_iters)
+    
     scalene_json = json.loads(stdout)
-    print(scalene_json)
+    filename = next(key for key in scalene_json['files'] if 'memory-' in key)
+    lines_out = {}
+    for label in labels:
+        line = next(line for line in scalene_json['files'][filename]['lines'] if label in line['line'])
+        lines_out[label] = {'total': line['n_malloc_mb'] * 1024 * 1024, 'average': line['n_avg_mb'] * 1024 * 1024}
+    print(json.dumps(lines_out))
+    # print(scalene_json)
 
 
-def run_tracemalloc(render_only: bool = False):
+def run_tracemalloc(num_iters, render_only: bool = False):
     stdout, _ = run_mem(TRACEMALLOC, render_only=render_only)
     tmalloc_json = json.loads(stdout)
     print(tmalloc_json)
 
 
-def run_austin(render_only: bool = False):
+def run_austin(labels, render_only: bool = False):
     cmd = ['austin', '-s', '--pipe', '-m']
     res_stdout, _ = run_mem(AUSTIN_MEM, prog=cmd, render_only=render_only)
-    res_dict = parse_austin(io.StringIO(res_stdout))
-    print(default_dict_to_dict(res_dict))
+    res_dict = parse_austin(io.StringIO(res_stdout), filename_prefix='memory')['lines']
+    austin_dict = default_dict_to_dict(res_dict)[get_fname(AUSTIN_MEM)]
+    ret = {}
+    for label in labels:
+        lineno = str(get_lineno_with_label(label, get_fname(AUSTIN_MEM)))
+        ret[label] = {
+            'total': sum(austin_dict[lineno]),
+            'average': sum(austin_dict[lineno]) / len(austin_dict[lineno])
+        }
+    print(json.dumps(ret))
+
+# Note: labels automatically discovered in here
+def run_pympler(num_iters: int, render_only: bool = False):
+    stdout, _ = run_mem(PYMPLER, render_only=render_only, num_iters=num_iters)
+    pympler_json = json.loads(stdout)
+    print(json.dumps(pympler_json))
 
 
-def run_fil(render_only):
+def run_fil(num_iters: int, labels, render_only: bool = False):
     cmd = ['fil-profile', '-o', 'results', 'run']
-    stdout, stderr = run_mem(FIL, prog=cmd, render_only=render_only)
+    stdout, stderr = run_mem(FIL, prog=cmd, render_only=render_only, num_iters=num_iters)
     stdout_lines = stderr.split('\n')
     line = next(line for line in stdout_lines if 'Preparing to write to' in line)
     _, _, base_path = line.rpartition(' ')
     prof_path = os.path.join(base_path, 'peak-memory.prof')
     with open(prof_path, 'r') as f:
         fil_dict = parse_fil(f, filename_discriminator='memory-')
-    print(default_dict_to_dict(fil_dict))
+    fil_lines = fil_dict[get_fname(FIL)]
+    ret = {}
+    for label in labels:
+        lineno = get_lineno_with_label(label, get_fname(FIL))
+        ret[label] = {'total': fil_lines[lineno], 'average': -1}
+    print(json.dumps(ret))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-b', '--benchmark', choices=['tracemalloc', 'scalene', 'fil', 'austin', 'memory_profiler']
+        '-b', '--benchmark', choices=['tracemalloc', 'scalene', 'fil', 'austin', 'memory_profiler', 'pympler']
     )
     parser.add_argument('-r', '--render-only', action='store_true')
     parser.add_argument('-s', '--store-intermediates', action='store_true')
+    parser.add_argument('-i', '--num-iters', default=50, type=int)
+    parser.add_argument('-l', '--labels-list', default="alloc1", type=str)
+    parser.add_argument('-t', '--template-base', default="memory")
     args = parser.parse_args()
+    mem_template = env.get_template(f'{args.template_base}.py.jinja2')
     profiler = args.benchmark
+    labels = args.labels_list.split(',')
     if profiler == 'tracemalloc':
         run_tracemalloc(render_only=args.render_only)
     elif profiler == 'memory_profiler':
         run_memory_profiler(render_only=args.render_only)
     elif profiler == 'scalene':
-        run_scalene(render_only=args.render_only)
+        run_scalene(render_only=args.render_only, labels=labels, num_iters=args.num_iters)
     elif profiler == 'fil':
-        run_fil(render_only=args.render_only)
+        run_fil(render_only=args.render_only, labels=labels, num_iters=args.num_iters)
     elif profiler == 'austin':
-        run_austin(render_only=args.render_only)
+        run_austin(labels=labels, render_only=args.render_only)
+    elif profiler == 'pympler':
+        run_pympler(render_only=args.render_only, num_iters=args.num_iters)
     if not args.store_intermediates and not args.render_only:
         g = glob.glob('rendered/*')
         for fname in g:

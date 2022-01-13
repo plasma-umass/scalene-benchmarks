@@ -67,7 +67,8 @@ def split_on_json(s):
     first, second = s.split(SEPARATOR)
     return first.strip(), second.strip()
 
-
+def get_filename(iters_inline, iters_fn, profiler_dict):
+    return f"bias-{iters_inline}-{iters_fn}-{next(k for k in profiler_dict if profiler_dict[k])}.py"
 def run_bias(iters_inline: int, iters_fn: int,  profiler_dict: Dict[str, bool], prog: List[str] = ['python3'], render_only: bool = False):
     """
     Renders the test template with instrumentation specified in `profiler_dict` with option
@@ -80,7 +81,7 @@ def run_bias(iters_inline: int, iters_fn: int,  profiler_dict: Dict[str, bool], 
 
     Returns: stdout and stderr of the process, decoded as UTF-8
     """
-    fname = f'rendered/bias-{iters_inline}-{iters_fn}-{next(k for k in profiler_dict if profiler_dict[k])}.py'
+    fname = f'rendered/{get_filename(iters_inline, iters_fn, profiler_dict)}'
 
     rendered = function_call_bias_template.render(
         iters_inline=iters_inline, iters_fn=iters_fn, profiler_dict=profiler_dict)
@@ -385,10 +386,11 @@ def run_austin(num_to_average, total_runs, percent_incr, eval_method: EvalMethod
         for i in range(num_to_average):
             res_stdout, _ = run_bias(amount_work_inline, amount_work_in_calls, AUSTIN, prog=cmd, render_only=render_only)
             # internal_time_str, austin_str = split_on_json(res_stdout)
-            res_dict = parse_austin(io.StringIO(res_stdout), is_full=use_full)
+            initial_res_dict = parse_austin(io.StringIO(res_stdout), is_full=use_full)
+            res_dict = initial_res_dict['functions'][get_filename(amount_work_inline, amount_work_in_calls, AUSTIN)]
             # internal_json = json.loads(internal_time_str)
-            total_time = res_dict['main']
-            fn_call_loop_time = res_dict['fn_call_loop']
+            total_time = sum(res_dict['main'])
+            fn_call_loop_time = sum(res_dict['fn_call_loop'])
             runtimes.append((fn_call_loop_time / total_time) * 100)
             # measured_runtimes.append((internal_json['actual_elapsed_fn'] / (
             #         internal_json['actual_elapsed_fn'] + internal_json['actual_elapsed_inline'])) * 100)

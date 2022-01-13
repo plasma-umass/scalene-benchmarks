@@ -1,9 +1,11 @@
 
 from typing import TextIO
 from collections import defaultdict
+import os
 
 def parse_austin(austin_pipe_out: TextIO, is_full=False, filename_prefix='bias'):
-    function_runtimes = defaultdict(lambda : 0)
+    function_runtimes = defaultdict(lambda : defaultdict(lambda : []))
+    line_runtimes = defaultdict(lambda : defaultdict(lambda : []))
     for sample in austin_pipe_out:
         # print(sample)
         if sample.startswith('#'):
@@ -19,10 +21,14 @@ def parse_austin(austin_pipe_out: TextIO, is_full=False, filename_prefix='bias')
             runtime = metrics
         runtime_cpu = int(runtime)
         for frame in frames.split(';'):
-            filename, fn_name, _ = frame.split(':')
+            filename, fn_name, lineno = frame.split(':')
             if filename_prefix in filename and fn_name != '<module>':
-                function_runtimes[fn_name] += runtime_cpu
-    return function_runtimes
+                function_runtimes[os.path.basename(filename)][fn_name].append(runtime_cpu)
+                line_runtimes[os.path.basename(filename)][lineno].append(runtime_cpu)
+    return {
+            'functions': function_runtimes,
+            'lines': line_runtimes
+        }
 
 if __name__ == '__main__':
     import argparse

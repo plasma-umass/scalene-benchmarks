@@ -16,28 +16,29 @@ from collections import defaultdict
 sizes = defaultdict(lambda : [])
 {% endif %}
 
-
 import numpy as np
 
-{# {% if profiler_dict.use_memory_profiler -%}
-@profile
-{%- endif %}
-def allocate():
-    return np.zeros((10000,1000)) #}
+ITS = 1000000
+SIZE = 100000
 
-{% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
-@profile
-{%- endif %}
 def test_memory():
     for i in range({{num_iters}}):
-        x = np.zeros((10000,1000)) # alloc1
+        x0 = np.empty((1000, SIZE// 100)) # alloc1
         {% if profiler_dict.use_pympler -%}
-        sizes['alloc1'].append(asizeof(x))
+        sizes['alloc1'].append(asizeof(x0))
         {% endif -%}
-        for i in range(1000):
-            for j in range(1000):
-                x[i,j] += 1 # touch1
-    return x
+        for i in range(ITS // 100):
+            x0[0] = 1 # touch1
+        
+        x = list(range(SIZE)) # alloc2
+        {% if profiler_dict.use_pympler -%}
+        sizes['alloc2'].append(asizeof(x))
+        {% endif -%}
+        for i in range(ITS):
+            x[0] = 258 # alloc3
+            {% if profiler_dict.use_pympler %}
+            sizes['alloc3'].append(asizeof(x))
+            {% endif %}
 
 if __name__ == '__main__':
     {% if profiler_dict.use_tracemalloc%}

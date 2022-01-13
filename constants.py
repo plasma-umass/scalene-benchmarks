@@ -27,7 +27,7 @@ AUSTIN['use_austin'] = True
 PYSPY['use_pyspy'] = True
 
 BASE_MEM_DICT = {k: False for k in [
-    'use_memory_profiler', 'use_scalene', 'use_tracemalloc', 'use_austin', 'use_fil']}
+    'use_memory_profiler', 'use_scalene', 'use_tracemalloc', 'use_austin', 'use_fil', 'use_pympler']}
 MEM_PROFILER = BASE_MEM_DICT.copy()
 MEM_PROFILER['use_memory_profiler'] = True
 
@@ -39,3 +39,5 @@ AUSTIN_MEM = BASE_MEM_DICT.copy()
 AUSTIN_MEM['use_austin'] = True
 FIL = BASE_MEM_DICT.copy()
 FIL['use_fil'] = True
+PYMPLER = BASE_MEM_DICT.copy()
+PYMPLER['use_pympler'] = True

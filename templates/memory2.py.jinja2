@@ -1,51 +1,43 @@
-{% if profiler_dict.use_austin -%}
-#!/usr/bin/env python3
-{%- endif %}
-{%-if profiler_dict.use_tracemalloc %}
+{% if profiler_dict.use_tracemalloc %}
 import tracemalloc
 tracemalloc.start()
 {% elif profiler_dict.use_scalene %}
 import scalene
-{% elif profiler_dict.use_memory_profiler %}
+
+{% elif profiler_dict.use_memory_profiler%}
 import memory_profiler 
 profile = memory_profiler.LineProfiler()
 {% elif profiler_dict.use_pympler %}
 from pympler.asizeof import asizeof
 {# from sys import getsizeof as asizeof #}
-from collections import defaultdict
-sizes = defaultdict(lambda : [])
-{% endif %}
-
-
+from inspect import currentframe, getframeinfo
+sizes = {}
+{%endif %}
 import numpy as np
 
-{# {% if profiler_dict.use_memory_profiler -%}
-@profile
-{%- endif %}
-def allocate():
-    return np.zeros((10000,1000)) #}
 
-{% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
+
+{% if use_memory_profiler -%}
 @profile
 {%- endif %}
 def test_memory():
-    for i in range({{num_iters}}):
-        x = np.zeros((10000,1000)) # alloc1
-        {% if profiler_dict.use_pympler -%}
-        sizes['alloc1'].append(asizeof(x))
-        {% endif -%}
-        for i in range(1000):
-            for j in range(1000):
-                x[i,j] += 1 # touch1
-    return x
-
+    {% if profiler_dict.use_pympler -%}
+    q = np.empty((2000,1000))
+    sizes[getframeinfo(currentframe()).lineno] = asizeof(q)
+    x = np.empty((2000,1000)) ; sizes[getframeinfo(currentframe()).lineno] = asizeof(x); del x
+    {%- else%}
+    np.empty((2000,1000))
+    x = np.empty((2000,1000)) ; del x
+    {%- endif%}
+    
+    
 if __name__ == '__main__':
     {% if profiler_dict.use_tracemalloc%}
     snapshot1 = tracemalloc.take_snapshot()
     {% elif profiler_dict.use_scalene %}
     scalene.scalene_profiler.start()
     {% endif %}
-    x = test_memory()
+    test_memory()
     {% if profiler_dict.use_tracemalloc %}
     snapshot2 = tracemalloc.take_snapshot()
     stats = snapshot2.compare_to(snapshot1, 'lineno')
@@ -59,5 +51,5 @@ if __name__ == '__main__':
     scalene.scalene_profiler.stop()
     {% elif profiler_dict.use_pympler%}
     import json
-    print(json.dumps({k: {'total': sum(v), 'average': sum(v) / len(v)} for k,v in sizes.items()} ))
+    print(json.dumps(sizes))
     {% endif %}
