@@ -10,9 +10,9 @@ class Action(Enum):
 
     @classmethod
     def from_str(cls, text):
-        if text.strip() == 'M':
+        if text.strip().lower() == 'm':
             return cls.MALLOC
-        elif text.strip() == 'F':
+        elif text.strip().lower() == 'f':
             return cls.FREE
 
 
@@ -54,13 +54,34 @@ class ScaleneReader:
         footprint = 0
         graph_entries = []
         for (action, count, pointer, fname, lineno, timestamp) in self.items:
+            if count == 98821:
+                continue
             if action == Action.MALLOC:
                 footprint += count
                 alive[pointer] = count
+
             elif action == Action.FREE:
                 footprint -= count
-                
-                # del alive[pointer]
+            
+                if pointer in alive:
+                    if alive[pointer] != count:
+
+                        print(f"Difference: {alive[pointer] - count}")
+                    del alive[pointer]
+
             time_percent = (timestamp - self.min_timestamp) / (self.max_timestamp - self.min_timestamp)
             graph_entries.append([time_percent, footprint])
+        print(alive)
         return graph_entries
+
+
+if __name__ == '__main__':
+    import sys
+    reader = ScaleneReader()
+    with open(sys.argv[1], 'r') as f:
+        while True:
+            line = f.readline().strip()
+            if len(line) == 0:
+                break
+            reader.read_line(line)
+    reader.items_gen()

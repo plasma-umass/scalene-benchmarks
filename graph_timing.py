@@ -12,7 +12,7 @@ def run_austin():
             ['austin', 
             '--pipe', 
             '-f', 
-            'timing/austin.py'], 
+            'timing/mem.py'], 
         capture_output=True)
     stdout = io.BytesIO(proc.stdout)
     for line in stdout.readlines():
@@ -25,7 +25,7 @@ def run_scalene():
         ['python3',
         '-m',
         'scalene',
-        'timing/scalene.py'
+        'timing/mem.py'
         ],
         capture_output=True
     )
