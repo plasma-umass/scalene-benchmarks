@@ -3,8 +3,8 @@ import argparse
 import json
 import subprocess
 
-PROFILERS = ['scalene', 'pympler', 'austin']
-ITERS = [1, 10, 20, 30, 40, 50]
+PROFILERS = ['scalene', 'pympler'] # , 'austin']
+ITERS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
 def get_cmd(profiler_name, num_iters):
     return ['python3', 'run_mem_tests.py', '-b', profiler_name, '-i', str(num_iters), '-s']
@@ -47,13 +47,13 @@ def graph_results():
     sa.set_label("Scalene")
     pa, = plt.plot(xvals, results['pympler']['averages'])
     pa.set_label('Pympler')
-    pf, = plt.plot(xvals, results['austin']['totals'])
-    pf.set_label('austin')
+    # pf, = plt.plot(xvals, results['austin']['totals'])
+    # pf.set_label('austin')
     plt.legend()
-    plt.title("1000x1000 array allocations vs average memory consumption")
+    plt.title("Iterations vs average memory consumption")
     plt.xlabel("Number of array allocations")
     plt.ylabel("Reported average memory consumption (bytes)")
-    # plt.ylim(bottom=0)
+    plt.ylim(bottom=0)
     plt.savefig('plots/averages.png')
     
     plt.figure()
@@ -61,8 +61,8 @@ def graph_results():
     st.set_label('Scalene')
     pt, = plt.plot(xvals, results['pympler']['totals'])
     pt.set_label("Pympler")
-    pf, = plt.plot(xvals, results['austin']['totals'])
-    pf.set_label('Austin')
+    # pf, = plt.plot(xvals, results['austin']['totals'])
+    # pf.set_label('Austin')
     plt.legend()
     plt.title("1000x1000 array allocations vs total memory consumption")
     plt.xlabel("Number of array allocations")
@@ -70,12 +70,19 @@ def graph_results():
     plt.ylim(bottom=0)
     plt.savefig('plots/totals.png')
     plt.figure()
-    diffs = [i - j for i,j in zip(results['scalene']['totals'], results['pympler']['totals'])]
-    plt.title("Differences in reported memory consumption for 1000x1000 array")
-    plt.plot(xvals, diffs)
+    tot_diffs = [i - j for i,j in zip(results['scalene']['averages'], results['pympler']['averages'])]
+    plt.title("Differences in averages")
+    plt.plot(xvals, tot_diffs)
     plt.xlabel("Number of array allocations")
     plt.ylabel("Difference (bytes)")
-    plt.savefig('plots/differences.png')
+    plt.savefig('plots/differences_averages.png')
+    plt.figure()
+    tot_diffs = [i - j for i,j in zip(results['scalene']['totals'], results['pympler']['totals'])]
+    plt.title("Differences in totals")
+    plt.plot(xvals, tot_diffs)
+    plt.xlabel("Number of array allocations")
+    plt.ylabel("Difference (bytes)")
+    plt.savefig('plots/differences_totals.png')
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['run', 'graph', 'both'])

@@ -1,5 +1,4 @@
 
-
 import numpy as np
 
 ITS = 1000000
@@ -18,5 +17,3 @@ def test_memory():
 
 if __name__ == '__main__':
     x = test_memory()
-
-    

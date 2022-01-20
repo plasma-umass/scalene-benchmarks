@@ -67,7 +67,7 @@ def show_results(prof, stream=None, precision=1):
                 total_mem = u''
                 inc = 0.0
                 occurrences = u''
-            lines_to_write.append({"lineno": lineno, "inc": inc})
+            lines_to_write.append({"lineno": lineno, "inc": inc, "total_mem": total_mem, "occurrences": occurrences})
             # tmp = template.format(lineno, total_mem, inc, occurrences, all_lines[lineno - 1])
             # stream.write(tmp)
         ret[filename] = lines_to_write

@@ -6,9 +6,9 @@ import tracemalloc
 tracemalloc.start()
 {% elif profiler_dict.use_scalene %}
 import scalene
-{% elif profiler_dict.use_memory_profiler %}
+{# {% elif profiler_dict.use_memory_profiler %}
 import memory_profiler 
-profile = memory_profiler.LineProfiler()
+profile = memory_profiler.LineProfiler() #}
 {% elif profiler_dict.use_pympler %}
 from pympler.asizeof import asizeof
 {# from sys import getsizeof as asizeof #}
@@ -29,15 +29,15 @@ def allocate():
 @profile
 {%- endif %}
 def test_memory():
-    for i in range({{num_iters}}):
-        x = np.zeros((10000,1000)) # alloc1
+    for i in range({{num_iters}}): # loop1
+        x = np.zeros((1000,10000)) # alloc
         {% if profiler_dict.use_pympler -%}
         sizes['alloc1'].append(asizeof(x))
         {% endif -%}
-        for i in range(1000):
-            for j in range(1000):
-                x[i,j] += 1 # touch1
-    return x
+        for i in range(1000): # loop2
+            for j in range(10000): # loop3
+                x[i][j] += 1 # touch1
+    return x # endloop1
 
 if __name__ == '__main__':
     {% if profiler_dict.use_tracemalloc%}

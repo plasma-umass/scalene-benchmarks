@@ -29,7 +29,8 @@ def run_scalene():
         ],
         capture_output=True
     )
-    fname = proc.stdout.decode('utf-8').strip().split(' ')[0].strip()
+    fname = proc.stderr.decode('utf-8').strip().split(' ')[0].strip()
+    # fname = '/tmp/scalene-malloc-signal127802'
     print(fname)
     with open(fname, 'r') as f:
         while True:
@@ -46,7 +47,7 @@ def run_tests():
         json.dump({
             'scalene': scalene.items_gen(),
             'austin': austin.items_gen()
-        }, f)
+        }, f, indent='\t')
 
 def graph_results():
     with open('results-mem.json', 'r') as f:

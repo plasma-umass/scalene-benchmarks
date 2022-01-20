@@ -1,5 +1,6 @@
 
 
+from collections import defaultdict
 from enum import Enum
 from math import inf
 
@@ -23,6 +24,7 @@ class ScaleneReader:
         self.items = []
 
     def read_line(self, line):
+
         (
             action,
             _alloc_time_str,
@@ -46,16 +48,27 @@ class ScaleneReader:
                 int(count_str), 
                 pointer, 
                 reported_fname, 
-                reported_lineno, 
+                int(reported_lineno), 
                 time_num
             ])
+    def aggregate_lines(self):
+        lines = defaultdict(lambda : [])
+        for (action, count, pointer, fname, lineno, timestamp) in self.items:
+            if action == Action.MALLOC:
+                lines[lineno].append(count)
+                
+
+            elif action == Action.FREE:
+                lines[lineno].append(-count)
+        for line in lines:
+            print(f"{line}: {sum(lines[line])/len(lines[line])}")
     def items_gen(self):
         alive = {}
         footprint = 0
         graph_entries = []
         for (action, count, pointer, fname, lineno, timestamp) in self.items:
-            if count == 98821:
-                continue
+            # if count == 1549479:
+            #     continue
             if action == Action.MALLOC:
                 footprint += count
                 alive[pointer] = count
@@ -84,4 +97,4 @@ if __name__ == '__main__':
             if len(line) == 0:
                 break
             reader.read_line(line)
-    reader.items_gen()
+    reader.aggregate_lines()
