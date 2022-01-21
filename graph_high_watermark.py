@@ -3,7 +3,7 @@ import argparse
 import json
 import subprocess
 
-PROFILERS = ['scalene', 'austin']
+PROFILERS = ['scalene', 'austin', 'memory_profiler']
 ITERS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
 def get_cmd(profiler_name, num_iters):
@@ -11,6 +11,7 @@ def get_cmd(profiler_name, num_iters):
 
 def run_test(profiler_name, iter):
     print(f"Running {profiler_name} {iter}")
+    print(' '.join(get_cmd(profiler_name, iter)))
     proc = subprocess.run(get_cmd(profiler_name, iter), capture_output=True)
     assert proc.returncode == 0
     ret_json = json.loads(proc.stdout.decode('utf-8'))
@@ -30,6 +31,21 @@ def run_tests():
     profiler_lists['xvals'] =  ITERS
     with open('results.json', 'w+') as f:
         json.dump(profiler_lists, f, indent='\t')
+
+def graph_results():
+    with open('results.json', 'r') as f:
+        results = json.loads(f.read())
+    xvals = results['xvals']
+    x, = plt.plot(xvals, results['scalene'])
+    x.set_label('scalene')
+    y, = plt.plot(xvals, results['austin'])
+    y.set_label('austin')
+    z, = plt.plot(xvals, results['memory_profiler'])
+    z.set_label('memory_profiler')
+    plt.legend()
+    plt.xlabel("Number of loops")
+    plt.ylabel("High watermark")
+    plt.savefig('plots/timing.png')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
