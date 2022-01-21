@@ -23,18 +23,18 @@ import numpy as np
 @profile
 {%- endif %}
 def allocate():
-    return np.zeros((10000,1000)) #}
+    return np.zeros((1000,1000)) #}
 
 {% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
 @profile
 {%- endif %}
 def test_memory():
     for i in range({{num_iters}}): # loop1
-        x = np.zeros((1000,10000)) # alloc
+        x = np.zeros((10000,10000)) # alloc
         {% if profiler_dict.use_pympler -%}
         sizes['alloc1'].append(asizeof(x))
         {% endif -%}
-        for i in range(1000): # loop2
+        for i in range(10000): # loop2
             for j in range(10000): # loop3
                 x[i][j] += 1 # touch1
     return x # endloop1

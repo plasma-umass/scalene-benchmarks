@@ -73,7 +73,7 @@ def run_memory_profiler(render_only=False, backend_flags=None, num_iters: int = 
         ret = {}
         for line in lines:
             if line['lineno'] in linenos:
-                ret[line['lineno']] = line['total_mem']
+                ret[line['lineno']] = line['total_mem'] * 1024 * 1024
         print(json.dumps(ret))
     else:
         print(mem_profiler_json)

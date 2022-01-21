@@ -3,8 +3,8 @@ import argparse
 import json
 import subprocess
 
-PROFILERS = ['scalene', 'austin', 'memory_profiler']
-ITERS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+PROFILERS = ['scalene', 'austin'] # , 'memory_profiler']
+ITERS = [20] # [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
 def get_cmd(profiler_name, num_iters):
     return ['python3', 'run_mem_tests.py', '-b', profiler_name, '-i', str(num_iters), '-l', 'loop1,alloc,loop2,loop3,touch1', '-w', '-s']
