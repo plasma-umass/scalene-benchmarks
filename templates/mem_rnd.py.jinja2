@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+
+import time
+import numpy as np
+from sys import argv
+
+ITS = 10
+
+def test_memory(no_touch):
+    indices = [{{indices | join(',')}}] # index
+    for i in range(ITS):
+        print(f"=== {i} {time.monotonic_ns()}")
+        x0 = np.zeros(({{nrows}}, 10000)) # alloc
+        for idx in indices: # loop2
+            x0[idx][0] = 1 # touch1
+    print(f"=== {ITS} {time.monotonic_ns()}")
+            
+
+if __name__ == '__main__':
+    x = test_memory('-n' in argv)
+
+    

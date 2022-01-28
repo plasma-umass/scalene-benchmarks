@@ -23,9 +23,9 @@ SIZE = 100000
 
 def test_memory():
     for i in range({{num_iters}}):
-        x0 = np.empty((1000, SIZE// 100)) # alloc1
+        x0 = np.empty((1000, SIZE// 100)) # alloc
         {% if profiler_dict.use_pympler -%}
-        sizes['alloc1'].append(asizeof(x0))
+        sizes['alloc'].append(asizeof(x0))
         {% endif -%}
         for i in range(ITS // 100):
             x0[0] = 1 # touch1
