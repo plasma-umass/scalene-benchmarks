@@ -49,7 +49,8 @@ class ScaleneReader:
                 pointer, 
                 reported_fname, 
                 int(reported_lineno), 
-                time_num
+                time_num,
+                timestamp
             ])
     def aggregate_lines(self):
         lines = defaultdict(lambda : [])
@@ -66,7 +67,7 @@ class ScaleneReader:
         alive = {}
         footprint = 0
         graph_entries = []
-        for (action, count, pointer, fname, lineno, timestamp) in self.items:
+        for (action, count, pointer, fname, lineno, time_num, timestamp) in self.items:
             # if count == 1549479:
             #     continue
             if action == Action.MALLOC:
@@ -82,8 +83,8 @@ class ScaleneReader:
                         print(f"Difference: {alive[pointer] - count}")
                     del alive[pointer]
 
-            time_percent = (timestamp - self.min_timestamp) / (self.max_timestamp - self.min_timestamp)
-            graph_entries.append([time_percent, footprint])
+            time_percent = (time_num - self.min_timestamp) / (self.max_timestamp - self.min_timestamp)
+            graph_entries.append([time_percent, footprint, time_percent, time_num])
         print(alive)
         return graph_entries
 

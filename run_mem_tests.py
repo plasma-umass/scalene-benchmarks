@@ -36,10 +36,10 @@ def get_lineno_with_label(label, fname):
                 return num
     return -1
 
-def run_mem(profiler_dict: Dict[str, bool], prog: List[str] = ['python3'], render_only: bool = False, num_iters: int = 50, template_base: str = 'memory'):
+def run_mem(profiler_dict: Dict[str, bool], prog: List[str] = ['python3'], render_only: bool = False, num_iters: int = 50, nrows: int = 10000, ncols: int = 1000):
     
     fname = f"rendered/{get_fname(profiler_dict)}"
-    rendered = mem_template.render(profiler_dict=profiler_dict, num_iters=num_iters)
+    rendered = mem_template.render(profiler_dict=profiler_dict, num_iters=num_iters, nrows=nrows, ncols=ncols)
     with open(fname, 'w+') as f:
         f.write(rendered)
     os.chmod(fname, 0o766)
@@ -79,9 +79,9 @@ def run_memory_profiler(render_only=False, backend_flags=None, num_iters: int = 
         print(mem_profiler_json)
 
 
-def run_scalene(num_iters: int, labels, render_only: bool = False, high_watermark: bool = False):
+def run_scalene(num_iters: int, labels, nrows: int, ncols: int, render_only: bool = False, high_watermark: bool = False):
     program = ['python3', '-m', 'scalene', '--json', '--off']
-    stdout, _ = run_mem(SCALENE_MEM, prog=program, render_only=render_only, num_iters=num_iters)
+    stdout, _ = run_mem(SCALENE_MEM, prog=program, render_only=render_only, num_iters=num_iters, nrows=nrows, ncols=ncols)
 
     scalene_json = json.loads(stdout)
     filename = f'rendered/{get_fname(SCALENE_MEM)}'
@@ -95,7 +95,11 @@ def run_scalene(num_iters: int, labels, render_only: bool = False, high_watermar
     else:
         lines_out = {}
         for label in labels:
-            line = next(line for line in scalene_json['files'][filename]['lines'] if label in line['line'])
+            try:
+
+                line = next(line for line in scalene_json['files'][filename]['lines'] if label in line['line'])
+            except StopIteration:
+                continue
             lines_out[label] = {'total': line['n_malloc_mb'] * 1024 * 1024, 'average': line['n_avg_mb'] * 1024 * 1024}
         print(json.dumps(lines_out))
     # print(scalene_json)
@@ -108,9 +112,9 @@ def run_tracemalloc(num_iters, render_only: bool = False):
 
 
 
-def run_austin(labels, num_iters: int = 50, render_only: bool = False, high_watermark: bool = False):
+def run_austin(labels, nrows: int, ncols: int, num_iters: int = 50, render_only: bool = False, high_watermark: bool = False):
     cmd = ['austin', '-s', '--pipe', '-m']
-    res_stdout, _ = run_mem(AUSTIN_MEM, prog=cmd, render_only=render_only, num_iters=num_iters)
+    res_stdout, _ = run_mem(AUSTIN_MEM, prog=cmd, render_only=render_only, num_iters=num_iters, nrows=nrows, ncols=ncols)
     res_dict = parse_austin(io.StringIO(res_stdout), filename_prefix='memory')
 
     res_dict_lines = res_dict['lines']
@@ -131,8 +135,8 @@ def run_austin(labels, num_iters: int = 50, render_only: bool = False, high_wate
         print(json.dumps(ret))
 
 # Note: labels automatically discovered in here
-def run_pympler(num_iters: int, render_only: bool = False):
-    stdout, _ = run_mem(PYMPLER, render_only=render_only, num_iters=num_iters)
+def run_pympler(num_iters: int, nrows: int, ncols: int, render_only: bool = False):
+    stdout, _ = run_mem(PYMPLER, render_only=render_only, num_iters=num_iters, nrows=nrows, ncols=ncols)
     pympler_json = json.loads(stdout)
     print(json.dumps(pympler_json))
 
@@ -162,9 +166,11 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--render-only', action='store_true')
     parser.add_argument('-s', '--store-intermediates', action='store_true')
     parser.add_argument('-i', '--num-iters', default=50, type=int)
-    parser.add_argument('-l', '--labels-list', default="alloc1", type=str)
+    parser.add_argument('-l', '--labels-list', default="alloc", type=str)
     parser.add_argument('-t', '--template-base', default="memory")
     parser.add_argument('-w', '--high-watermark', action='store_true')
+    parser.add_argument('-n', '--nrows', type=int, default=10000)
+    parser.add_argument('-c', '--ncols', type=int, default=1000)
     args = parser.parse_args()
     mem_template = env.get_template(f'{args.template_base}.py.jinja2')
     profiler = args.benchmark
@@ -174,13 +180,13 @@ if __name__ == '__main__':
     elif profiler == 'memory_profiler':
         run_memory_profiler(render_only=args.render_only, num_iters=args.num_iters, high_watermark=args.high_watermark)
     elif profiler == 'scalene':
-        run_scalene(render_only=args.render_only, labels=labels, num_iters=args.num_iters, high_watermark=args.high_watermark)
+        run_scalene(render_only=args.render_only, labels=labels, num_iters=args.num_iters, high_watermark=args.high_watermark, nrows=args.nrows, ncols=args.ncols)
     elif profiler == 'fil':
         run_fil(render_only=args.render_only, labels=labels, num_iters=args.num_iters)
     elif profiler == 'austin':
-        run_austin(labels=labels, render_only=args.render_only, num_iters=args.num_iters, high_watermark=args.high_watermark)
+        run_austin(labels=labels, render_only=args.render_only, num_iters=args.num_iters, high_watermark=args.high_watermark, nrows=args.nrows, ncols=args.ncols)
     elif profiler == 'pympler':
-        run_pympler(render_only=args.render_only, num_iters=args.num_iters)
+        run_pympler(render_only=args.render_only, num_iters=args.num_iters, nrows=args.nrows, ncols=args.ncols)
     if not args.store_intermediates and not args.render_only:
         g = glob.glob('rendered/*')
         for fname in g:

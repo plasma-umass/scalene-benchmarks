@@ -7,7 +7,7 @@ SIZE = 100000
 
 def test_memory():
     for i in range(ITS):
-        x0 = np.empty((1000, 10000)) # alloc1
+        x0 = np.empty((1000, 10000)) # alloc
         # for i in range(ITS // 100):
         #     x0[0] = 1 # touch1
         

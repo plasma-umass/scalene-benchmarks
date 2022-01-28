@@ -7,19 +7,20 @@ PROFILERS = ['scalene', 'pympler'] # , 'austin']
 ITERS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
 def get_cmd(profiler_name, num_iters):
-    return ['python3', 'run_mem_tests.py', '-b', profiler_name, '-i', str(num_iters), '-s']
+    return ['python3', 'run_mem_tests.py', '-b', profiler_name, '-i', str(num_iters), '-s', '-l', 'touch1,alloc', '-n', '10000', '-c', '1000']
 
 def run_test(profiler_name, iter):
     print(f"Running {profiler_name} {iter}")
+    print(' '.join(get_cmd(profiler_name, iter)))
     proc = subprocess.run(get_cmd(profiler_name, iter), capture_output=True)
     assert proc.returncode == 0
     ret_json = json.loads(proc.stdout.decode('utf-8'))
     if profiler_name == 'austin':
         return ret_json['touch1']['average'], ret_json['touch1']['total']
     else:
-        return ret_json['alloc1']['average'], ret_json['alloc1']['total']
+        return ret_json['alloc']['average'], ret_json['alloc']['total']
     
-def run_tests():
+def run_tests(json_filename):
     profiler_lists = {
             prof: {
                 'averages': [],
@@ -36,11 +37,11 @@ def run_tests():
             profiler_lists[prof_name]['totals'].append(total)
 
     profiler_lists['xvals'] =  ITERS
-    with open('results.json', 'w+') as f:
+    with open(f'data/{json_filename}.json', 'w+') as f:
         json.dump(profiler_lists, f, indent='\t')
 
-def graph_results():
-    with open('results.json', 'r') as f:
+def graph_results(filename):
+    with open(f'data/{filename}.json', 'r') as f:
         results = json.loads(f.read())
     xvals = results['xvals']
     sa, = plt.plot(xvals, results['scalene']['averages'])
@@ -54,7 +55,7 @@ def graph_results():
     plt.xlabel("Number of array allocations")
     plt.ylabel("Reported average memory consumption (bytes)")
     plt.ylim(bottom=0)
-    plt.savefig('plots/averages.png')
+    plt.savefig(f'plots/{filename}_averages.png')
     
     plt.figure()
     st, = plt.plot(xvals, results['scalene']['totals'])
@@ -68,26 +69,29 @@ def graph_results():
     plt.xlabel("Number of array allocations")
     plt.ylabel("Reported average memory consumption (bytes)")
     plt.ylim(bottom=0)
-    plt.savefig('plots/totals.png')
+    plt.savefig(f'plots/{filename}_totals.png')
     plt.figure()
-    tot_diffs = [i - j for i,j in zip(results['scalene']['averages'], results['pympler']['averages'])]
-    plt.title("Differences in averages")
+    tot_diffs = [((i - j) / j) * 100 for i,j in zip(results['scalene']['averages'], results['pympler']['averages'])]
+    plt.title("Percent difference in averages between Pympler and Scalene")
     plt.plot(xvals, tot_diffs)
     plt.xlabel("Number of array allocations")
-    plt.ylabel("Difference (bytes)")
-    plt.savefig('plots/differences_averages.png')
+    plt.ylabel("Difference (%)")
+    plt.ylim((0, 100))
+    plt.savefig(f'plots/{filename}_differences_averages.png')
     plt.figure()
-    tot_diffs = [i - j for i,j in zip(results['scalene']['totals'], results['pympler']['totals'])]
-    plt.title("Differences in totals")
+    tot_diffs = [((i - j) / j) * 100  for i,j in zip(results['scalene']['totals'], results['pympler']['totals'])]
+    plt.title("Percent difference in totals between Pympler and Scalene")
     plt.plot(xvals, tot_diffs)
     plt.xlabel("Number of array allocations")
-    plt.ylabel("Difference (bytes)")
-    plt.savefig('plots/differences_totals.png')
+    plt.ylabel("Difference (%)")
+    plt.ylim((0, 100))
+    plt.savefig(f'plots/{filename}_differences_totals.png')
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['run', 'graph', 'both'])
+    parser.add_argument('-f', '--filename', default="results")
     args = parser.parse_args()
     if args.action == 'run' or args.action == 'both':
-        run_tests()
+        run_tests(args.filename)
     if args.action == 'graph' or args.action == 'both':
-        graph_results()
+        graph_results(args.filename)
