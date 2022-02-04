@@ -17,6 +17,8 @@ mem_template = env.get_template(
     'mem_rnd.py.jinja2')
 
 np.random.seed(8980)
+n_rand_accesses = 65536
+n_rows = 10000
 def get_indices(nrows, num):
     return np.random.randint(0, nrows, num)
 
@@ -32,7 +34,7 @@ def gen_randomness(nrows, n_accesses):
 def run_austin(no_touch, is_random):
     reader = AustinReader()
     if is_random:
-        fname = gen_randomness(10000, 65536)
+        fname = gen_randomness(n_rows, n_rand_accesses)
     else:
         fname = 'timing/mem.py'
     proc = subprocess.run(
@@ -57,7 +59,7 @@ def run_austin(no_touch, is_random):
 def run_scalene(no_touch, is_random):
     reader = ScaleneReader()
     if is_random:
-        fname = gen_randomness(1000, 4096)
+        fname = gen_randomness(n_rows, n_rand_accesses)
     else:
         fname = 'timing/mem.py'
     proc = subprocess.run(
@@ -69,6 +71,12 @@ def run_scalene(no_touch, is_random):
          ],
         capture_output=True
     )
+    print(' '.join(['python3',
+         '-m',
+         'scalene',
+         fname,
+         '-n' if no_touch else '-y'
+         ]))
     fname = proc.stderr.decode('utf-8').strip().split(' ')[0].strip()
     stdout = proc.stdout.decode('utf-8')
     loop_starts = []
@@ -137,8 +145,9 @@ def graph_results(filename_base, random, no_touch):
     y, = plt.plot(austin_times, austin_footprints)
     y.set_label('austin')
     plt.legend()
-    plt.xlabel("Iteration of loop")
+    plt.xlabel("Program milestone")
     plt.ylabel("Recorded footprint/ (bytes)")
+    plt.title('Program milestone vs memory footprint')
     plt.savefig(f'plots/{filename_base}.png')
 
 
@@ -152,4 +161,4 @@ if __name__ == '__main__':
     if args.action == 'run' or args.action == 'both':
         run_tests(args.filename, args.no_touch, args.random)
     if args.action == 'graph' or args.action == 'both':
-        graph_results(args.filename)
+        graph_results(args.filename, args.random, args.no_touch)

@@ -14,8 +14,10 @@ def run_test(profiler_name, iter):
     print(' '.join(get_cmd(profiler_name, iter)))
     proc = subprocess.run(get_cmd(profiler_name, iter), capture_output=True)
     assert proc.returncode == 0
-    ret_json = json.loads(proc.stdout.decode('utf-8'))
-    return max(ret_json.values())
+    high_watermark = json.loads(proc.stdout.decode('utf-8'))['high_watermark']
+    # ret_json = json.loads(proc.stdout.decode('utf-8'))
+    # return max(ret_json.values())
+    return high_watermark
 
 def run_tests():
     profiler_lists = {

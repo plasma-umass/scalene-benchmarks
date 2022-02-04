@@ -3,8 +3,8 @@ import argparse
 import json
 import subprocess
 
-PROFILERS = ['scalene', 'pympler'] # , 'austin']
-ITERS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+PROFILERS = ['scalene', 'pympler' , 'austin']
+ITERS = [1, 10, 20, 30, 40, 50]# , 60, 70, 80, 90, 100]
 
 def get_cmd(profiler_name, num_iters):
     return ['python3', 'run_mem_tests.py', '-b', profiler_name, '-i', str(num_iters), '-s', '-l', 'touch1,alloc', '-n', '10000', '-c', '1000']
@@ -65,7 +65,7 @@ def graph_results(filename):
     # pf, = plt.plot(xvals, results['austin']['totals'])
     # pf.set_label('Austin')
     plt.legend()
-    plt.title("1000x1000 array allocations vs total memory consumption")
+    plt.title("10000x1000 array allocations vs total memory consumption")
     plt.xlabel("Number of array allocations")
     plt.ylabel("Reported average memory consumption (bytes)")
     plt.ylim(bottom=0)
@@ -81,10 +81,15 @@ def graph_results(filename):
     plt.figure()
     tot_diffs = [((i - j) / j) * 100  for i,j in zip(results['scalene']['totals'], results['pympler']['totals'])]
     plt.title("Percent difference in totals between Pympler and Scalene")
-    plt.plot(xvals, tot_diffs)
+    q, = plt.plot(xvals, tot_diffs)
+    q.set_label('Pympler vs Scalene')
+    tot_diffs_austin = [((i - j) / j) * 100  for i,j in zip(results['austin']['totals'], results['pympler']['totals'])]
+    r, = plt.plot(xvals, tot_diffs_austin)
+    r.set_label("Pympler vs Austin")
     plt.xlabel("Number of array allocations")
+    plt.legend()
     plt.ylabel("Difference (%)")
-    plt.ylim((0, 100))
+    # plt.ylim((0, 100))
     plt.savefig(f'plots/{filename}_differences_totals.png')
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

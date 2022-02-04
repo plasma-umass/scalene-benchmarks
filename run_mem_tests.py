@@ -127,11 +127,12 @@ def run_austin(labels, nrows: int, ncols: int, num_iters: int = 50, render_only:
         ret = {}
         for label in labels:
             lineno = str(get_lineno_with_label(label, get_fname(AUSTIN_MEM)))
-            print(austin_dict)
-            ret[label] = {
-                'total': sum(austin_dict[lineno]),
-                'average': sum(austin_dict[lineno]) / len(austin_dict[lineno])
-            }
+            # print(austin_dict)
+            if lineno in austin_dict:
+                ret[label] = {
+                    'total': sum(austin_dict[lineno]),
+                    'average': sum(austin_dict[lineno]) / len(austin_dict[lineno])
+                }
         print(json.dumps(ret))
 
 # Note: labels automatically discovered in here

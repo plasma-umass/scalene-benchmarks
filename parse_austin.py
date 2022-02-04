@@ -8,6 +8,7 @@ def parse_austin(austin_pipe_out: TextIO, is_full=False, filename_prefix='bias')
     function_runtimes = defaultdict(lambda : defaultdict(lambda : []))
     line_runtimes = defaultdict(lambda : defaultdict(lambda : []))
     line_high_watermarks = defaultdict(lambda : defaultdict(lambda : -inf))
+    high_watermark = -inf
     footprint = 0
     logs = []
     for sample in austin_pipe_out:
@@ -33,12 +34,14 @@ def parse_austin(austin_pipe_out: TextIO, is_full=False, filename_prefix='bias')
                 function_runtimes[os.path.basename(filename)][fn_name].append(runtime_cpu)
                 line_runtimes[os.path.basename(filename)][lineno].append(runtime_cpu)
                 line_high_watermarks[os.path.basename(filename)][lineno] = max(line_high_watermarks[os.path.basename(filename)][lineno], footprint)
+        high_watermark = max(high_watermark, footprint)
         logs.append([frames_list, runtime_cpu])
     return {
             'functions': function_runtimes,
             'lines': line_runtimes,
             'logs': logs,
             'watermarks': line_high_watermarks,
+            'high_watermark': high_watermark
         }
 
 if __name__ == '__main__':

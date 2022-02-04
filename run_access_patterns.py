@@ -1,3 +1,4 @@
+from math import inf
 import numpy as np
 from constants import MEM_PROFILER, SCALENE_MEM, TRACEMALLOC, AUSTIN_MEM, FIL, PYMPLER
 from typing import Dict, List
@@ -96,12 +97,12 @@ def run_austin(labels, nrows, ncols, num_accesses, num_iters: int = 50, render_o
                             nrows=nrows, ncols=ncols, indices=indices)
     res_dict = parse_austin(io.StringIO(res_stdout),
                             filename_prefix='access_pattern')
-
+    
     fname = get_fname(AUSTIN_MEM)
     linenos = set(map(lambda x: str(get_lineno_with_label(x, fname)), labels))
-    print(json.dumps(
-        {k: v for k, v in res_dict['watermarks'][fname].items() if k in linenos}))
-
+    # print(json.dumps(
+    #     {k: v for k, v in res_dict['watermarks'][fname].items() if k in linenos}))
+    print(json.dumps({'high_watermark': res_dict['high_watermark']}))
 
 def run_memory_profiler(labels, nrows, ncols, num_accesses, render_only=False, backend_flags=None, num_iters: int = 50):
     program = ['python3', 'memprof-wrapper.py']
@@ -116,11 +117,15 @@ def run_memory_profiler(labels, nrows, ncols, num_accesses, render_only=False, b
 
     lines = mem_profiler_json[f'rendered/{get_fname(MEM_PROFILER)}']
     linenos = set(map(lambda x: get_lineno_with_label(x, fname), labels))
-    ret = {}
+    
+    high_watermark = -inf
     for line in lines:
-        if line['lineno'] in linenos:
-            ret[line['lineno']] = line['total_mem'] * 1024 * 1024
-    print(json.dumps(ret))
+        total_mem = line['total_mem'] if not isinstance(line['total_mem'], str) else 0
+        if  total_mem * 1024 * 1024 > high_watermark:
+            high_watermark = total_mem * 1024 * 1024
+    #     if line['lineno'] in linenos:
+    #         ret[line['lineno']] = line['total_mem'] * 1024 * 1024
+    print(json.dumps({'high_watermark': high_watermark}))
 
 
 # Note: labels automatically discovered in here
