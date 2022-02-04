@@ -110,7 +110,7 @@ def get_and_normalize_record(monotonic_time, loop_boundaries):
         print(monotonic_time, current_idx, len(loop_boundaries), val, loop_boundaries[current_idx - 1], loop_boundaries[current_idx])
     return val
 
-def graph_results(filename_base):
+def graph_results(filename_base, random, no_touch):
     with open(f'data/{filename_base}.json', 'r') as f:
         dd = json.load(f)
     scalene_loop_boundaries = dd['scalene_loop_starts']
@@ -137,8 +137,8 @@ def graph_results(filename_base):
     y, = plt.plot(austin_times, austin_footprints)
     y.set_label('austin')
     plt.legend()
-    plt.xlabel("Percent of run")
-    plt.ylabel("Recorded footprint/sum of allocations and frees")
+    plt.xlabel("Iteration of loop")
+    plt.ylabel("Recorded footprint/ (bytes)")
     plt.savefig(f'plots/{filename_base}.png')
 
 
