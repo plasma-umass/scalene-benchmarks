@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+import time
+import numpy as np
+from sys import argv, platform
+import gc
+{% if is_pympler %}
+from pympler import asizeof
+{% endif %}
+{# indices = [{{indices | join(',')}}] # index
+for i in range(ITS):
+    print(f"=== {i} {time.clock_gettime_ns(clock)}")
+    x0 = np.zeros(({{nrows}}, 10000)) # alloc
+    for idx in indices: # loop2
+        x0[idx][0] = 1 # touch1
+print(f"=== {ITS} {time.clock_gettime_ns(clock)}") #}
+ITS = 5
+clock = time.CLOCK_UPTIME_RAW if platform == 'darwin' else time.CLOCK_MONOTONIC
+
+def test_memory(no_touch):
+
+    {%- if is_pympler %}
+    tot_size = 0
+    print(f"=== BEGIN 0")
+    {% else %}
+    print(f"=== BEGIN {time.clock_gettime_ns(clock)}")
+    {% endif %}
+    
+    {%- for epoch in epochs %}
+    {%- if is_pympler %}
+    init_size = tot_size
+    {% endif %}
+    {%- for alloc in epoch.allocs %}
+    {{alloc.var}} = np.empty({{alloc.size}})
+    for i in range({{alloc.size}}):
+        {{alloc.var}}[i] = 5
+    {%- if is_pympler %}
+    tot_size += asizeof.asizeof({{alloc.var}})
+    {% endif %}
+    {% endfor %}
+    {%- for free in epoch.frees %}
+    {%- if is_pympler %}
+    tot_size -= asizeof.asizeof({{free.var}})
+    {% endif%}
+    del {{free.var}}
+    {% endfor%}
+    {# gc.collect() #}
+    {%- if is_pympler %}
+    print(f"=== {{epoch.id}} {tot_size - init_size}")
+    
+    {% else %}
+    print(f"=== {{epoch.id}} {time.clock_gettime_ns(clock)}")
+    {% endif %}
+    {% endfor %}        
+
+if __name__ == '__main__':
+    x = test_memory('-n' in argv)
+
+    

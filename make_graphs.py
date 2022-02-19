@@ -4,7 +4,7 @@ import json
 import subprocess
 
 PROFILERS = ['scalene', 'pympler' , 'austin']
-ITERS = [1, 10, 20, 30, 40, 50]# , 60, 70, 80, 90, 100]
+ITERS = [1, 10] # , 20, 30, 40, 50]# , 60, 70, 80, 90, 100]
 
 def get_cmd(profiler_name, num_iters):
     return ['python3', 'run_mem_tests.py', '-b', profiler_name, '-i', str(num_iters), '-s', '-l', 'touch1,alloc', '-n', '10000', '-c', '1000']

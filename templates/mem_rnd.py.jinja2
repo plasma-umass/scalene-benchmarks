@@ -4,7 +4,7 @@ import time
 import numpy as np
 from sys import argv, platform
 
-ITS = 1
+ITS = 5
 clock = time.CLOCK_UPTIME_RAW if platform == 'darwin' else time.CLOCK_MONOTONIC
 
 def test_memory(no_touch):

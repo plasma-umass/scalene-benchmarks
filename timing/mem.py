@@ -6,7 +6,7 @@ from sys import argv, platform
 
 
 clock = time.CLOCK_UPTIME_RAW if platform == 'darwin' else time.CLOCK_MONOTONIC
-ITS = 1
+ITS = 5
 
 def test_memory(no_touch):
     for i in range(ITS):

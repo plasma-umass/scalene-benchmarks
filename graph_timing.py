@@ -146,7 +146,7 @@ def graph_results(filename_base, random, no_touch):
     y.set_label('austin')
     plt.legend()
     plt.xlabel("Program milestone")
-    plt.ylabel("Recorded footprint/ (bytes)")
+    plt.ylabel("Recorded footprint (bytes)")
     plt.title('Program milestone vs memory footprint')
     plt.savefig(f'plots/{filename_base}.png')
 
