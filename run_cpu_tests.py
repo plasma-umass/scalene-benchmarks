@@ -156,8 +156,9 @@ def run_profile_or_cprofile(num_to_average, total_runs, percent_incr, eval_metho
 
 
 def get_function_json_scalene(functions, fn_name):
+    # print(functions)
     try:
-        function_ret = next(fn for fn in functions if fn['fn_name'] == fn_name)
+        function_ret = next(fn for fn in functions if fn['line'] == fn_name)
     except StopIteration:
         function_ret = defaultdict(lambda: 0)
     return function_ret
@@ -171,7 +172,7 @@ def run_scalene(num_to_average, total_runs, percent_incr, eval_method: EvalMetho
         runtimes = []
         measured_runtimes = []
         cmd = [
-            'python3', '-m', 'scalene', '--json', '--off']
+            'python3', '-m', 'scalene', '--json', '--cli', '--off']
         if not with_memory:
             cmd += ['--cpu-only']
         for i in range(num_to_average):

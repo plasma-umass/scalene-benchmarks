@@ -3,6 +3,9 @@ import argparse
 import json
 import subprocess
 
+# Compares the high watermark of various profilers
+# driver loop for graphing-- see `run_mem_tests.py`
+
 PROFILERS = ['scalene', 'austin'] # , 'memory_profiler']
 ITERS = [20] # [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 

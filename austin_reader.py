@@ -20,6 +20,20 @@ class AustinReader:
         self.footprint += memdelta
         self.items.append([self.max, self.footprint, mono])
 
+    def read_line_delta(self, line: str):
+        line = line.strip()
+        if line.startswith('#') or len(line) == 0:
+            return
+        (frame, _, metrics) = line.rpartition(' ')
+        timedelta_s,_,memdelta_s,mono_s = metrics.split(',')
+        # timedelta = int(timedelta_s)
+        memdelta = int(memdelta_s)
+        mono = int(mono_s)
+        self.items.append([mono, memdelta])
+
+    def items_gen_delta(self):
+        return self.items
+        
     def items_gen(self):
         items = []
         for item in self.items:

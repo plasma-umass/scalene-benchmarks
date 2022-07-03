@@ -36,7 +36,8 @@ def run_austin(no_touch, is_random):
     if is_random:
         fname = gen_randomness(n_rows, n_rand_accesses)
     else:
-        fname = 'timing/mem.py'
+        # fname = 'timing/mem.py'
+        fname = './test_yrustt.py'
     proc = subprocess.run(
         ['austin',
          '--pipe',
@@ -61,11 +62,13 @@ def run_scalene(no_touch, is_random):
     if is_random:
         fname = gen_randomness(n_rows, n_rand_accesses)
     else:
-        fname = 'timing/mem.py'
+        # fname = 'timing/mem.py'
+        fname = 'test_yrustt.py'
     proc = subprocess.run(
         ['python3',
          '-m',
          'scalene',
+         '--cli',
          fname,
          '-n' if no_touch else '-y'
          ],

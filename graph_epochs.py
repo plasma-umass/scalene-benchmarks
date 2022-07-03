@@ -11,6 +11,8 @@ import os
 import random 
 import string
 
+# Can't quite figure out what this one is, it seems important
+
 N_EPOCHS = 10
 N_ALLOCS_PER_EPOCH = 50
 N_FREES_PER_EPOCH = 20
@@ -138,7 +140,11 @@ def run_pympler(epochs):
          ],
         capture_output=True
     )
-
+    print(' '.join(['python3',
+         fname,
+         '-y'
+         ]))
+    assert proc.returncode == 0
     fname = proc.stderr.decode('utf-8').strip().split(' ')[0].strip()
     stdout = proc.stdout.decode('utf-8')
     deltas = []

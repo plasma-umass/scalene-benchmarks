@@ -87,7 +87,11 @@ class ScaleneReader:
             graph_entries.append([time_percent, footprint, time_percent, time_num])
         print(alive)
         return graph_entries
-
+    def items_gen_delta(self):
+        graph_entries = []
+        for (action, count, pointer, fname, lineno, time_num, timestamp) in self.items:
+            graph_entries.append([time_num, count if action == Action.MALLOC else -count])
+        return graph_entries
 
 if __name__ == '__main__':
     import sys

@@ -3,6 +3,10 @@ import argparse
 import json
 import subprocess
 
+# This is meant to show how RSS is a bad metric for memory usage
+
+# This varies the number of random accesses for an array of a fixed size
+
 PROFILERS = ['scalene', 'austin', 'pympler', 'memory_profiler']
 # ITERS = [20] # [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 iter = 1
@@ -19,6 +23,9 @@ def run_test(profiler_name, iter, access):
     if profiler_name == 'pympler':
         return sum(ret_json.values())
     print(ret_json)
+    # By default, this simply takes the things in the JSON and sums them or gets the max--
+    # If we do multiple runs, we can just average with error bars
+    # Possibly just run this multiple times
     return max(ret_json.values()) if len(ret_json.values()) > 0 else 0
 
 def run_tests(filename_base):

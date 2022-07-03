@@ -80,9 +80,8 @@ def run_memory_profiler(render_only=False, backend_flags=None, num_iters: int = 
 
 
 def run_scalene(num_iters: int, labels, nrows: int, ncols: int, render_only: bool = False, high_watermark: bool = False):
-    program = ['python3', '-m', 'scalene', '--json', '--off']
+    program = ['python3', '-m', 'scalene', '--json', '--off', '--cli']
     stdout, _ = run_mem(SCALENE_MEM, prog=program, render_only=render_only, num_iters=num_iters, nrows=nrows, ncols=ncols)
-
     scalene_json = json.loads(stdout)
     filename = f'rendered/{get_fname(SCALENE_MEM)}'
     if high_watermark:
