@@ -58,6 +58,7 @@ def run_mem(profiler_dict: Dict[str, bool], indices: List[int], nitems, prog: Li
     os.chmod(fname, 0o766)
     if render_only:
         return '', ''
+    print(' '.join(prog + [fname]), file=sys.stderr)
     p = subprocess.run(
         prog + [fname], capture_output=True)
     stderr = p.stderr.decode('utf-8')

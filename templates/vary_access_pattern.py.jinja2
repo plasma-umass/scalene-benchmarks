@@ -25,6 +25,7 @@ import numpy as np
 def foo(indices):
     x = np.zeros(({{nitems}})) # alloc
     x[indices] = 8980
+    y = 5
     {# del x
     gc.collect() #}
 

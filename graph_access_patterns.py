@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import argparse
 import json
 import subprocess
-
+import seaborn as sns
 # This is meant to show how RSS is a bad metric for memory usage
 
 # This varies the number of random accesses for an array of a fixed size
@@ -52,6 +52,40 @@ def run_tests(filename_base):
         json.dump(profiler_lists, f, indent='\t')
 
 def graph_results(filename_base):
+
+
+    sns.set()
+    monospace_font = 'Andale Mono' # 'Courier New'
+    default_font = 'Arial'
+
+    sns.set(font=default_font,
+        rc={
+            'font.size' : 16,
+            'axes.titlesize' : 24,
+            'axes.labelsize' : 14,
+            'axes.axisbelow': False,
+            'axes.edgecolor': 'lightgrey',
+            'axes.facecolor': 'None',
+            'axes.grid': False,
+            'axes.labelcolor': 'dimgrey',
+            'axes.spines.right': False,
+            'axes.spines.top': False,
+            'figure.facecolor': 'white',
+            'lines.solid_capstyle': 'round',
+            'patch.edgecolor': 'w',
+            'patch.force_edgecolor': True,
+            'text.color': 'black',
+            'xtick.bottom': False,
+            'xtick.color': 'dimgrey',
+            'xtick.direction': 'out',
+            'xtick.top': False,
+            'ytick.color': 'dimgrey',
+            'ytick.direction': 'out',
+            'ytick.left': False,
+            'ytick.right': False})
+
+    # from graphdefaults import *
+    plt.style.use('ggplot')
     with open(f'data/{filename_base}.json', 'r') as f:
         results = json.loads(f.read())
     xvals = [((i * 512) / results['arr_size']) * 100 for i in results['xvals']]
@@ -65,8 +99,8 @@ def graph_results(filename_base):
     a.set_label('memory_profiler')
     plt.legend()
     plt.ylim(bottom=0)
-    plt.xlabel("Allocated pages of array accessed (%)")
-    plt.ylabel("Allocation footprint (bytes)")
+    plt.xlabel("Allocated pages of array accessed (%)")# , pad=20, fontweight='bold', font=default_font, fontsize=18)
+    plt.ylabel("Allocation footprint (bytes)")#, pad=20, fontweight='bold', font=default_font, fontsize=18)
     plt.title('Allocated pages accessed vs allocation footprint')
     plt.savefig(f'plots/{filename_base}.png')
 

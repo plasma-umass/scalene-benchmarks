@@ -37,6 +37,7 @@ def _find_script(script_name):
     raise SystemExit(1)
 
 def show_results(prof, stream=None, precision=1):
+    # print(list(prof.code_map.items()))
     import sys
     import linecache
     if stream is None:
@@ -56,6 +57,8 @@ def show_results(prof, stream=None, precision=1):
 
         # float_format = u'{0}.{1}f'.format(precision + 4, precision)
         # template_mem = u'{0:' + float_format + '} MiB'
+        if filename not in ret:
+            ret[filename] = []
         for (lineno, mem) in lines:
             if mem:
                 inc = mem[0]
@@ -70,7 +73,7 @@ def show_results(prof, stream=None, precision=1):
             lines_to_write.append({"lineno": lineno, "inc": inc, "total_mem": total_mem, "occurrences": occurrences})
             # tmp = template.format(lineno, total_mem, inc, occurrences, all_lines[lineno - 1])
             # stream.write(tmp)
-        ret[filename] = lines_to_write
+        ret[filename] += lines_to_write
     import json
     stream.write(json.dumps(ret))
 

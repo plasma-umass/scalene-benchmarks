@@ -1,1 +1,11 @@
 __pycache__/
+results/
+junk/
+fil-result/
+rendered/*.py
+*.txt
+*.html
+*.bin
+*.bin.*
+*.xml
+*.svg
