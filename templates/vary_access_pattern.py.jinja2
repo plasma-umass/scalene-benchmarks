@@ -19,14 +19,14 @@ sizes = defaultdict(lambda : [])
 import gc
 import numpy as np
 
-{# {% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
+{% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
 @profile
 {%- endif %}
 def foo(indices):
     x = np.zeros(({{nitems}})) # alloc
     x[indices] = 8980
     {# del x
-    gc.collect() #} #}
+    gc.collect() #}
 
 {% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
 @profile
@@ -41,10 +41,7 @@ def test_memory():
         {# for idx in indices: # loop2
             x[idx][0] = 1 # touch1 #}
         {# del x #}
-        {# foo(indices) #}
-        x = np.zeros(({{nitems}})) # alloc
-        x[indices] = 8980
-        del x
+        foo(indices)
     return None # endloop1
 
 if __name__ == '__main__':
