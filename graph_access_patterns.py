@@ -84,6 +84,9 @@ def graph_results(filename_base):
             'ytick.left': False,
             'ytick.right': False})
 
+    x_labelparams = {'style' : 'italic', 'weight' : 'bold', 'font' : default_font, 'size' : 12 }
+    y_labelparams = {'style' : 'italic', 'weight' : 'bold', 'font' : default_font, 'size' : 12 }
+    title_params = {'weight' : 'bold', 'font' : default_font, 'size' : 18 }
     # from graphdefaults import *
     plt.style.use('ggplot')
     with open(f'data/{filename_base}.json', 'r') as f:
@@ -98,11 +101,15 @@ def graph_results(filename_base):
     a, = plt.plot(xvals, [r / 1048576 for r in results['memory_profiler']])
     a.set_label('memory_profiler')
     legend = plt.legend() # loc="upper left")
-    plt.setp(legend.get_texts(), fontsize='14', family=monospace_font)
+    plt.setp(legend.get_texts(), fontsize='12', family=monospace_font)
     plt.ylim(bottom=0)
-    plt.xlabel("Percent of array accessed")# , pad=20, fontweight='bold', font=default_font, fontsize=18)
-    plt.ylabel("Reported allocation size (MB)")#, pad=20, fontweight='bold', font=default_font, fontsize=18)
-    plt.title('Memory accounting, Snoopy vs. RSS-based proxies')
+    plt.xlabel("Percent of array accessed", x_labelparams)# , pad=20, fontweight='bold', font=default_font, fontsize=18)
+    plt.ylabel("Reported allocation size (MB)", y_labelparams)#, pad=20, fontweight='bold', font=default_font, fontsize=18)
+    plt.title('Memory accounting, Snoopy vs. RSS-based proxies', title_params, pad=20)
+    ax = plt.gca()
+    for tick in ax.get_xticklabels():
+        tick.set_fontweight("bold")
+        tick.set_horizontalalignment("left")
     plt.savefig(f'plots/{filename_base}.pdf')
 
 if __name__ == '__main__':
