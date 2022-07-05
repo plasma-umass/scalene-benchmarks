@@ -7,19 +7,26 @@ import subprocess
 
 # This varies the number of random accesses for an array of a fixed size
 
-PROFILERS = ['scalene', 'austin', 'pympler', 'memory_profiler']
+PROFILERS = ['scalene', 'austin', 'memory_profiler']# ,'memory_profiler']
 # ITERS = [20] # [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-iter = 1
-accesses = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+iter = 10
+size_of_array = 131072 * 512
+accesses = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]
 def get_cmd(profiler_name, num_iters, access):
-    return ['python3', 'run_access_patterns.py', '-b', profiler_name, '-i', str(num_iters), '-l', 'index,loop1,alloc,loop2,touch1', '-a', str(access), '-s']
+    return ['python3', 'run_access_patterns.py', '-b', profiler_name, '-i', str(num_iters), '-l', 'index,loop1,alloc,loop2,touch1', '-a', str(access), '-s', '-n', str(size_of_array)]
 
 def run_test(profiler_name, iter, access):
     print(f"Running {profiler_name} {iter} {access}")
     print(' '.join(get_cmd(profiler_name, iter, access)))
     proc = subprocess.run(get_cmd(profiler_name, iter, access), capture_output=True)
-    assert proc.returncode == 0
-    ret_json = json.loads(proc.stdout.decode('utf-8'))
+    if proc.returncode != 0:
+        print("ERROR IN RUN")
+        print(proc.stderr.decode('utf-8'))
+        print(proc.stdout.decode('utf-8'))
+        return None
+    q = proc.stdout.decode('utf-8')
+    # print(q, proc.stderr.decode('utf-8'))
+    ret_json = json.loads(q)
     if profiler_name == 'pympler':
         return sum(ret_json.values())
     print(ret_json)
@@ -40,26 +47,27 @@ def run_tests(filename_base):
 
 
     profiler_lists['xvals'] =  accesses
+    profiler_lists['arr_size'] = size_of_array
     with open(f'data/{filename_base}.json', 'w+') as f:
         json.dump(profiler_lists, f, indent='\t')
 
 def graph_results(filename_base):
     with open(f'data/{filename_base}.json', 'r') as f:
         results = json.loads(f.read())
-    xvals = results['xvals']
+    xvals = [((i * 512) / results['arr_size']) * 100 for i in results['xvals']]
     x, = plt.plot(xvals, results['scalene'])
     x.set_label('scalene')
     y, = plt.plot(xvals, results['austin'])
     y.set_label('austin')
-    z, = plt.plot(xvals, results['pympler'])
-    z.set_label('pympler')
+    # z, = plt.plot(xvals, results['pympler'])
+    # z.set_label('pympler')
     a, = plt.plot(xvals, results['memory_profiler'])
     a.set_label('memory_profiler')
     plt.legend()
     plt.ylim(bottom=0)
-    plt.xlabel("Number of rows accessed")
-    plt.ylabel("High watermark (bytes)")
-    plt.title('Number of rows accessed vs high memory watermark')
+    plt.xlabel("Allocated pages of array accessed (%)")
+    plt.ylabel("Allocation footprint (bytes)")
+    plt.title('Allocated pages accessed vs allocation footprint')
     plt.savefig(f'plots/{filename_base}.png')
 
 if __name__ == '__main__':

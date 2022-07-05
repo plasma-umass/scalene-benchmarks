@@ -18,7 +18,7 @@ from parse_fil import parse_fil
 
 import argparse
 
-
+import sys
 loader = FileSystemLoader('templates')
 
 env = Environment(loader=loader)
@@ -44,15 +44,15 @@ def get_lineno_with_label(label, fname):
 np.random.seed(8980)
 
 
-def get_indices(nrows, num):
-    return np.random.randint(0, nrows, num)
+def get_indices(num):
+    return [512 * i for i in range(num)]
 
 
-def run_mem(profiler_dict: Dict[str, bool], indices: List[int], nrows, ncols, prog: List[str] = ['python3'], render_only: bool = False, num_iters: int = 50):
+def run_mem(profiler_dict: Dict[str, bool], indices: List[int], nitems, prog: List[str] = ['python3'], render_only: bool = False, num_iters: int = 50):
 
     fname = f"rendered/{get_fname(profiler_dict)}"
     rendered = mem_template.render(
-        profiler_dict=profiler_dict, num_iters=num_iters, indices=indices, nrows=nrows, ncols=ncols)
+        profiler_dict=profiler_dict, num_iters=num_iters, indices=indices, nitems=nitems)
     with open(fname, 'w+') as f:
         f.write(rendered)
     os.chmod(fname, 0o766)
@@ -73,28 +73,29 @@ def default_dict_to_dict(d):
     return {k: dict(v) for k, v in d.items()}
 
 
-def run_scalene(num_iters: int, nrows: int, ncols: int, num_accesses, labels, render_only: bool = False):
+def run_scalene(num_iters: int, nitems: int, num_accesses, labels, render_only: bool = False):
     program = ['python3', '-m', 'scalene', '--json', '--off']
-    indices = get_indices(nrows, num_accesses)
+    indices = get_indices(num_accesses)
     stdout, stderr = run_mem(SCALENE_MEM, prog=program,
-                             render_only=render_only, num_iters=num_iters, nrows=nrows, ncols=ncols, indices=indices)
+                             render_only=render_only, num_iters=num_iters, nitems=nitems, indices=indices)
+    print(stdout, file=sys.stderr)
     scalene_json = json.loads(stdout)
     filename = f'{get_fname(SCALENE_MEM)}'
-    ret = {}
-    lines = scalene_json['files'][f'rendered/{filename}']['lines']
-    linenos = set(map(lambda x: get_lineno_with_label(x, filename), labels))
-    for line in lines:
-        if line['lineno'] in linenos:
-            ret[line['lineno']] = line['n_peak_mb'] * 1024 * 1024
+    ret = {'high_watermark': scalene_json['max_footprint_mb'] * 1024 * 1024}
+    # lines = scalene_json['files'][f'rendered/{filename}']['lines']
+    # linenos = set(map(lambda x: get_lineno_with_label(x, filename), labels))
+    # for line in lines:
+    #     if line['lineno'] in linenos:
+    #         ret[line['lineno']] = line['n_peak_mb'] * 1024 * 1024
     print(json.dumps(ret))
 
 
-def run_austin(labels, nrows, ncols, num_accesses, num_iters: int = 50, render_only: bool = False):
+def run_austin(labels, nitems, num_accesses, num_iters: int = 50, render_only: bool = False):
     cmd = ['austin', '-s', '--pipe', '-m']
-    indices = get_indices(nrows, num_accesses)
+    indices = get_indices(num_accesses)
     res_stdout, _ = run_mem(AUSTIN_MEM, prog=cmd,
                             render_only=render_only, num_iters=num_iters,
-                            nrows=nrows, ncols=ncols, indices=indices)
+                            nitems=nitems, indices=indices)
     res_dict = parse_austin(io.StringIO(res_stdout),
                             filename_prefix='access_pattern')
     
@@ -104,14 +105,14 @@ def run_austin(labels, nrows, ncols, num_accesses, num_iters: int = 50, render_o
     #     {k: v for k, v in res_dict['watermarks'][fname].items() if k in linenos}))
     print(json.dumps({'high_watermark': res_dict['high_watermark']}))
 
-def run_memory_profiler(labels, nrows, ncols, num_accesses, render_only=False, backend_flags=None, num_iters: int = 50):
+def run_memory_profiler(labels, nitems, num_accesses, render_only=False, backend_flags=None, num_iters: int = 50):
     program = ['python3', 'memprof-wrapper.py']
     if backend_flags:
         program += ['--backend', backend_flags]
-    indices = get_indices(nrows, num_accesses)
+    indices = get_indices(num_accesses)
     stdout, stderr = run_mem(MEM_PROFILER, prog=program,
                             render_only=render_only, num_iters=num_iters,
-                            nrows=nrows, ncols=ncols, indices=indices)
+                            nitems=nitems, indices=indices)
     fname = get_fname(MEM_PROFILER)
     mem_profiler_json = json.loads(stdout)
 
@@ -131,10 +132,10 @@ def run_memory_profiler(labels, nrows, ncols, num_accesses, render_only=False, b
 # Note: labels automatically discovered in here
 
 
-def run_pympler(num_iters: int, nrows, ncols, num_accesses, render_only: bool = False):
-    indices = get_indices(nrows, num_accesses)
+def run_pympler(num_iters: int, nitems, num_accesses, render_only: bool = False):
+    indices = get_indices(num_accesses)
     stdout, _ = run_mem(PYMPLER, render_only=render_only,
-                        num_iters=num_iters, nrows=nrows, ncols=ncols, indices=indices)
+                        num_iters=num_iters, nitems=nitems, indices=indices)
     pympler_json = json.loads(stdout)
     print(json.dumps(pympler_json))
 
@@ -149,8 +150,8 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--num-iters', default=50, type=int)
     parser.add_argument('-l', '--labels-list', default="alloc", type=str)
     parser.add_argument('-t', '--template-base', default="vary_access_pattern")
-    parser.add_argument('-n', '--nrows', type=int, default=10000)
-    parser.add_argument('-c', '--ncols', type=int, default=1000)
+    parser.add_argument('-n', '--nitems', type=int, default=100000)
+
     parser.add_argument('-a', '--num-accesses', type=int, default=10)
     args = parser.parse_args()
     mem_template = env.get_template(f'{args.template_base}.py.jinja2')
@@ -158,21 +159,20 @@ if __name__ == '__main__':
     labels = args.labels_list.split(',')
     if profiler == 'scalene':
         run_scalene(render_only=args.render_only, labels=labels,
-                    nrows=args.nrows, ncols=args.ncols,
+                    nitems=args.nitems,
                     num_iters=args.num_iters, num_accesses=args.num_accesses)
     elif profiler == 'austin':
         run_austin(labels=labels, render_only=args.render_only,
-                   nrows=args.nrows, ncols=args.ncols,
+                   nitems=args.nitems,
                    num_iters=args.num_iters, num_accesses=args.num_accesses)
     elif profiler == 'pympler':
         run_pympler(render_only=args.render_only,
-                    nrows=args.nrows, ncols=args.ncols,
+                    nitems=args.nitems,
                     num_iters=args.num_iters, num_accesses=args.num_accesses)
     elif profiler == 'memory_profiler':
         run_memory_profiler(labels=labels,
                             render_only=args.render_only,
-                            nrows=args.nrows, 
-                            ncols=args.ncols, 
+                            nitems=args.nitems,
                             num_iters=args.num_iters, num_accesses=args.num_accesses)
     if not args.store_intermediates and not args.render_only:
         g = glob.glob('rendered/*')

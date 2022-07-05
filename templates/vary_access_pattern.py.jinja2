@@ -16,26 +16,36 @@ from collections import defaultdict
 sizes = defaultdict(lambda : [])
 {%- endif %}
 
-
+import gc
 import numpy as np
 
+{# {% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
+@profile
+{%- endif %}
+def foo(indices):
+    x = np.zeros(({{nitems}})) # alloc
+    x[indices] = 8980
+    {# del x
+    gc.collect() #} #}
 
 {% if profiler_dict.use_memory_profiler or profiler_dict.use_scalene -%}
 @profile
 {%- endif %}
 def test_memory():
-    indices = [{{indices | join(',')}}] # index
+    indices = np.array([{{indices | join(',')}}]) # index
     {% if profiler_dict.use_pympler -%}
     sizes['index'].append(asizeof(indices))
     {% endif -%}
     for i in range({{num_iters}}): # loop1
-        x = np.zeros(({{nrows}},{{ncols}})) # alloc
-        {% if profiler_dict.use_pympler -%}
-        sizes['alloc'].append(asizeof(x))
-        {% endif -%}
-        for idx in indices: # loop2
-            x[idx][0] = 1 # touch1
-    return x # endloop1
+        
+        {# for idx in indices: # loop2
+            x[idx][0] = 1 # touch1 #}
+        {# del x #}
+        {# foo(indices) #}
+        x = np.zeros(({{nitems}})) # alloc
+        x[indices] = 8980
+        del x
+    return None # endloop1
 
 if __name__ == '__main__':
     {% if profiler_dict.use_tracemalloc%}

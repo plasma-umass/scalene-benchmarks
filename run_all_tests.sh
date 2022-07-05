@@ -4,6 +4,7 @@ PROFILERS=(
     # 'profile'
     # 'cProfile'
     'scalene'
+    'scalene-mem'
     # 'pprofile_det'
     # 'yappi_cpu'
     # 'yappi_wall'
