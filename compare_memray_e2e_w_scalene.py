@@ -51,9 +51,11 @@ def run_cmd_and_average(cmd, is_memray=False):
     # cmd = ["python3", "-m", "scalene"]
     ret = []
     ret_analysis = []
+    ret_fsizes = []
     for loop in loops:
         runtimes = []
         runtimes_analysis = []
+        fsizes = []
         print("RUNNING", cmd, NUM_TO_AVERAGE, "TIMES")
         for _ in range(NUM_TO_AVERAGE):
 
@@ -62,15 +64,18 @@ def run_cmd_and_average(cmd, is_memray=False):
             # json_dict = json.loads(json_str.split('===')[1].strip())
             runtimes.append(time_to_run)
             if is_memray:
-                tt = run_extractor()
-                runtimes_analysis.append(tt)
+                extractor_time = run_extractor()
+                runtimes_analysis.append(extractor_time)
+                ret_fsizes.append('out.bin')
+            else:
+                ret_fsizes.append(os.path.getsize('out.json'))
         ret.append((loop, runtimes))
         ret_analysis.append((loop, runtimes_analysis))
-    return ret, ret_analysis
+    return ret, ret_analysis, ret_fsizes
 
 
 def run_tests(filename):
-    scalene_cmd = ["python3", "-m", "scalene"]
+    scalene_cmd = ["python3", "-m", "scalene", '--json', '--outfile', 'out.json']
     memray_cmd = ["python3", "-m", "memray", "run", "-f", "-o", "out.bin"]
     memray_pymem_cmd = ["python3", "-m", "memray", "run",
                         "--trace-python-allocators", "-f", "-o", "out.bin"]
@@ -78,13 +83,14 @@ def run_tests(filename):
 
     base_cmd = ["python3"]
     to_write = {}
-    to_write['scalene'] = {"run": run_cmd_and_average(scalene_cmd)[0]}
-    times, an_times = run_cmd_and_average(memray_cmd, is_memray=True)
-    to_write['memray'] = {"run": times, "analysis": an_times}
-    pymem_times, pymem_an_times = run_cmd_and_average(
+    scalene_runtimes, _, scalene_fsizes = run_cmd_and_average(scalene_cmd)
+    to_write['scalene'] = {"run": scalene_runtimes, 'fsizes': scalene_fsizes}
+    times, an_times, fsizes = run_cmd_and_average(memray_cmd, is_memray=True)
+    to_write['memray'] = {"run": times, "analysis": an_times, 'fsizes': fsizes}
+    pymem_times, pymem_an_times, pymem_fsizes = run_cmd_and_average(
         memray_pymem_cmd, is_memray=True)
     to_write['memray_w_pymem'] = {
-        "run": pymem_times, "analysis": pymem_an_times}
+        "run": pymem_times, "analysis": pymem_an_times, 'fsizes': pymem_fsizes}
 
     to_write['base'] ={"run": run_cmd_and_average(base_cmd)[0]}
     to_write['noop'] = {'run': run_cmd_and_average(noop_cmd)[0]}
