@@ -7,7 +7,7 @@ import seaborn as sns
 
 # This varies the number of random accesses for an array of a fixed size
 
-PROFILERS = ['scalene', 'austin', 'memory_profiler']# ,'memory_profiler']
+PROFILERS = [ 'pympler', 'scalene', 'austin', 'memory_profiler', 'memray', 'fil']# ,'memory_profiler']
 # ITERS = [20] # [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 iter = 10
 size_of_array = 131072 * 512
@@ -27,9 +27,10 @@ def run_test(profiler_name, iter, access):
     q = proc.stdout.decode('utf-8')
     # print(q, proc.stderr.decode('utf-8'))
     ret_json = json.loads(q)
+    # print(ret_json)
     if profiler_name == 'pympler':
         return sum(ret_json.values())
-    print(ret_json)
+    
     # By default, this simply takes the things in the JSON and sums them or gets the max--
     # If we do multiple runs, we can just average with error bars
     # Possibly just run this multiple times
@@ -96,10 +97,14 @@ def graph_results(filename_base):
     x.set_label('Snoopy')
     y, = plt.plot(xvals, [r / 1048576 for r in results['austin']])
     y.set_label('Austin')
-    # z, = plt.plot(xvals, results['pympler'])
-    # z.set_label('pympler')
+    z, = plt.plot(xvals, [r / 1048576 for r in results['pympler']])
+    z.set_label('Pympler')
     a, = plt.plot(xvals, [r / 1048576 for r in results['memory_profiler']])
     a.set_label('memory_profiler')
+    y, = plt.plot(xvals, [r / 1048576 for r in results['memray']])
+    y.set_label('Memray')
+    z, = plt.plot(xvals, [r / 1048576 for r in results['fil']])
+    z.set_label('Fil')
     legend = plt.legend() # loc="upper left")
     plt.setp(legend.get_texts(), fontsize='12', family=monospace_font)
     plt.ylim(bottom=0)

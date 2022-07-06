@@ -5,6 +5,10 @@ from os.path import basename
 def parse_fil(input: TextIO, filename_discriminator = None):
     ret = defaultdict(lambda : defaultdict(lambda : 0))
     for line in input:
+        # print(line)
+        if "No Python stack" in line:
+            ret['[No Python stack]'][-1] = int(line.strip().rpartition(' ')[-1])
+            continue
         head, _, alloc = line.rpartition(' ')
         _, _, callermost = head.rpartition(';')
         
@@ -19,6 +23,6 @@ def parse_fil(input: TextIO, filename_discriminator = None):
 
 
 if __name__ == '__main__':
-    with open('peak-memory.prof', 'r') as f:
-        res = parse_fil(f, 'testme')
+    with open('fil_output/2022-07-05T21:28:10.519/peak-memory.prof', 'r') as f:
+        res = parse_fil(f, 'access_pattern')
     print(res)

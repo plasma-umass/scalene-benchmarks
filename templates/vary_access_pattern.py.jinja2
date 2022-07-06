@@ -26,6 +26,9 @@ def foo(indices):
     x = np.zeros(({{nitems}})) # alloc
     x[indices] = 8980
     y = 5
+    {% if profiler_dict.use_pympler -%}      
+    sizes['alloc'].append(asizeof(x))
+    {% endif -%}
     {# del x
     gc.collect() #}
 
